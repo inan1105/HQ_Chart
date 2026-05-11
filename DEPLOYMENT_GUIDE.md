@@ -11,7 +11,10 @@
 
 ## 2. Vercel에서 GitHub 저장소 연결하기
 
-1. https://vercel.com/new 로 이동합니다.
+1. 아래 버튼을 누르거나 https://vercel.com/new 로 이동합니다.
+
+   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Finan1105%2FHQ_Chart&project-name=hq-chart&repository-name=HQ_Chart)
+
 2. Continue with GitHub를 선택합니다.
 3. GitHub 로그인 또는 Vercel 권한 승인이 나오면 진행합니다.
 4. Import Git Repository 목록에서 `HQ_Chart`를 찾습니다.

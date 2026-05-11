@@ -4,6 +4,8 @@
 
 외부 접속용 배포는 [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)를 따라 진행합니다.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Finan1105%2FHQ_Chart&project-name=hq-chart&repository-name=HQ_Chart)
+
 ## 실행 순서
 
 1. Node.js LTS를 설치합니다. 이미 설치되어 있으면 건너뜁니다.
