@@ -4,9 +4,9 @@
   "private": true,
   "description": "IAMChart stock chart with moving averages, Bollinger Bands, volume, and MACD.",
   "scripts": {
-    "start": "node server.js"
+    "local": "node server.js"
   },
   "engines": {
-    "node": "22.x"
+    "node": "20.x"
   }
 }
