@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IAMChart 기술지표 차트</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">IAMChart API</p>
+            <h1>기술지표 차트</h1>
+          </div>
+          <div id="status" class="status" role="status">준비됨</div>
+        </header>
+
+        <form id="chartForm" class="control-bar">
+          <label>
+            시장
+            <select id="market" name="market">
+              <option value="kospi" selected>KOSPI</option>
+              <option value="kosdaq">KOSDAQ</option>
+            </select>
+          </label>
+
+          <label>
+            주기
+            <select id="period" name="period">
+              <option value="d" selected>일간</option>
+              <option value="w">주간</option>
+              <option value="m">월간</option>
+            </select>
+          </label>
+
+          <label>
+            종목코드
+            <input
+              id="code"
+              name="code"
+              value="128820"
+              maxlength="6"
+              pattern="[A-Za-z0-9]{6}"
+              autocomplete="off"
+              required
+            />
+          </label>
+
+          <label>
+            데이터 수
+            <input
+              id="limit"
+              name="limit"
+              type="number"
+              min="1"
+              max="1000"
+              step="1"
+              value="200"
+              required
+            />
+          </label>
+
+          <button type="submit">차트 생성</button>
+        </form>
+
+        <section class="chart-toolbar" aria-label="차트 정보">
+          <div id="summary" class="summary">kospi · d · 128820 · 200</div>
+          <div class="legend" aria-label="범례">
+            <span><i style="--color: #d33f49"></i>상승</span>
+            <span><i style="--color: #2474c6"></i>하락</span>
+            <span><i style="--color: #2d6cdf"></i>MA5</span>
+            <span><i style="--color: #ef8f22"></i>MA20</span>
+            <span><i style="--color: #16815c"></i>MA60</span>
+            <span><i style="--color: #7b4fc4"></i>MA100</span>
+            <span><i style="--color: #697386"></i>BB 10,2</span>
+          </div>
+        </section>
+
+        <section class="chart-stage">
+          <canvas id="chart" aria-label="주가, 거래량, MACD 차트"></canvas>
+          <div id="emptyState" class="empty-state" hidden>데이터가 없습니다.</div>
+        </section>
+
+        <section id="readout" class="readout" aria-live="polite">
+          마우스를 차트 위에 올리면 선택한 날짜의 값이 표시됩니다.
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
