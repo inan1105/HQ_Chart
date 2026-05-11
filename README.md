@@ -1,10 +1,19 @@
 # IAMChart 기술지표 차트 앱
 
-비개발자도 순서대로 따라 실행할 수 있도록 만든 로컬 웹앱입니다.
+비개발자도 순서대로 따라 실행할 수 있도록 만든 주식 기술지표 차트 앱입니다.
 
-외부 접속용 배포는 [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)를 따라 진행합니다.
+## 외부 접속
+
+이미 Vercel 배포가 완료되어 있습니다.
+
+- 외부 접속 주소: https://hq-chart.vercel.app
+- GitHub 저장소: https://github.com/inan1105/HQ_Chart
+
+새로 배포하거나 다른 Vercel 계정에 복제 배포할 때만 아래 버튼을 사용합니다.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Finan1105%2FHQ_Chart&project-name=hq-chart&repository-name=HQ_Chart)
+
+자세한 배포 절차는 [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)를 확인합니다.
 
 ## 실행 순서
 
