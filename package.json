@@ -1,12 +1,14 @@
 {
-  "name": "hq-chart",
-  "version": "1.0.0",
+  "name": "stockr",
+  "version": "0.1.0",
   "private": true,
-  "description": "IAMChart stock chart with moving averages, Bollinger Bands, volume, and MACD.",
+  "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "build:symbols": "node scripts/build-symbols.mjs",
+    "dev": "node local-server.mjs",
+    "start": "node local-server.mjs"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=20"
   }
 }

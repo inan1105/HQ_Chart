@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stockr</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand-lockup" href="/" aria-label="Stockr">
+        <img src="/stockr-logo.png" alt="" />
+        <span>Stockr</span>
+      </a>
+      <nav class="header-actions" aria-label="대화 관리">
+        <button type="button" id="newChatButton">새 대화</button>
+        <button type="button" id="historyToggle">대화 목록</button>
+      </nav>
+    </header>
+
+    <main class="app-shell">
+      <section class="empty-state" id="emptyState" aria-label="Stockr 시작">
+        <img src="/stockr-logo.png" alt="Stockr" />
+      </section>
+
+      <section class="market-panel" id="marketPanel" aria-label="종목 요약">
+        <div class="market-topline">
+          <div>
+            <p class="label">선택 종목</p>
+            <h1 id="resolvedSymbol">-</h1>
+          </div>
+          <div class="price-box">
+            <strong id="lastClose">-</strong>
+            <span id="changeText">-</span>
+          </div>
+          <div class="chart-period-control">
+            <button
+              type="button"
+              class="chart-currency"
+              id="chartCurrency"
+              aria-label="차트 봉 변경"
+              title="클릭하면 일봉, 주봉, 월봉 순서로 바뀝니다"
+            >일봉</button>
+          </div>
+          <button type="button" class="chart-toggle" id="textOnlyToggle">텍스트만</button>
+          <button type="button" class="chart-toggle" id="chartToggle">작게 보기</button>
+        </div>
+
+        <div class="period-row" id="periodRow" aria-label="차트 기간">
+          <button type="button" class="active" data-range="1m">1개월</button>
+          <button type="button" data-range="3m">3개월</button>
+          <button type="button" data-range="6m">6개월</button>
+          <button type="button" data-range="1y">1년</button>
+          <button type="button" data-range="3y">3년</button>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="priceChart" width="720" height="180" aria-label="가격 흐름"></canvas>
+          <div class="chart-tooltip" id="chartTooltip"></div>
+        </div>
+        <div class="chart-dates" id="chartDates" aria-hidden="true"></div>
+
+        <div class="metrics-row">
+          <div>
+            <span id="sma20Label">20일</span>
+            <strong id="sma20">-</strong>
+          </div>
+          <div>
+            <span id="sma60Label">60일</span>
+            <strong id="sma60">-</strong>
+          </div>
+          <div>
+            <span>RSI</span>
+            <strong id="rsi14">-</strong>
+          </div>
+          <div>
+            <span>거래량</span>
+            <strong id="volume">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="thread" id="chatLog" aria-label="대화"></section>
+
+      <section class="suggestion-panel" id="suggestionPanel" aria-label="추천 질문"></section>
+    </main>
+
+    <footer class="risk-footer">
+      <details>
+        <summary>
+          stockr에서 제공되는 모든 정보는 투자 참고용이며, 제시된 수치와 해석은 수익을 보장하지 않습니다.
+          <span>전체보기</span>
+        </summary>
+        <p>
+          stockr에서 제공되는 모든 정보는 투자 참고용이며, 제시된 수치와 해석은 수익을 보장하지 않습니다.
+          투자에 따른 최종 결정과 원금 손실 등 결과에 대한 책임은 투자자 본인에게 귀속됩니다.
+          본 채널은 '이에스플랜잇'이 운영하며, 업체는 금융위원회의 정식 인허가를 받은 금융회사가 아닌 신고된 유사투자자문업자입니다.
+          본 서비스는 불특정 다수인을 대상으로 하는 단방향 정보제공만을 목적으로 하며, 개별적인 상담이나 1:1 투자 조언은 불법으로 엄격히 금지됩니다.
+        </p>
+      </details>
+    </footer>
+
+    <form class="composer" id="chatForm">
+      <label class="sr-only" for="messageInput">질문 입력</label>
+      <textarea
+        id="messageInput"
+        rows="1"
+        placeholder="Stockr에게 물어보세요"
+      ></textarea>
+      <button type="submit">보내기</button>
+      <div class="autocomplete-panel" id="autocompletePanel" aria-label="종목 자동완성"></div>
+      <div class="autocomplete-help">↑ ↓ 선택 · Enter 적용 · ESC 취소</div>
+    </form>
+
+    <aside class="conversation-drawer" id="historyDrawer" aria-label="대화 목록">
+      <div class="drawer-header">
+        <strong>대화 목록</strong>
+        <button type="button" id="historyClose">닫기</button>
+      </div>
+      <div class="conversation-list" id="conversationList"></div>
+    </aside>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

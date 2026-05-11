@@ -1,0 +1,42 @@
+name: Update Stockr symbols
+
+on:
+  # 22:10 UTC = 07:10 KST. This runs after the US regular market close
+  # in both daylight saving and standard time, and before the Korean market opens.
+  schedule:
+    - cron: "10 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-symbols:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Rebuild symbols.json
+        run: npm run build:symbols
+
+      - name: Commit and push when symbols changed
+        run: |
+          if git diff --quiet -- public/symbols.json; then
+            echo "symbols.json is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/symbols.json
+          git commit -m "chore: update Stockr symbols"
+          git push
