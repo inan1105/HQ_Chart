@@ -6,6 +6,25 @@ const emptyStateEl = document.querySelector("#emptyState");
 const canvas = document.querySelector("#chart");
 const ctx = canvas.getContext("2d");
 
+const STOCK_NAME_TO_CODE = {
+  "삼성전자": "005930",
+  "sk하이닉스": "000660",
+  "현대차": "005380",
+  "기아": "000270",
+  "네이버": "035420",
+  "naver": "035420",
+  "카카오": "035720",
+  "셀트리온": "068270",
+  "lg에너지솔루션": "373220",
+  "포스코홀딩스": "005490",
+  "두산": "000150",
+  "아모레퍼시픽": "090430",
+  "삼양식품": "003230",
+  "삼아알미늄": "006110",
+  "다우데이타": "032190",
+  "oracle": "128820",
+};
+
 const colors = {
   ink: "#172033",
   muted: "#667085",
@@ -529,12 +548,33 @@ function updateReadout(index = state.hoverIndex) {
 
 function paramsFromForm() {
   const data = new FormData(form);
+  const rawCode = String(data.get("code") || "128820").trim();
+  const normalizedCode = normalizeStockCode(rawCode);
   return {
     market: String(data.get("market") || "kospi").toLowerCase(),
     period: String(data.get("period") || "d").toLowerCase(),
-    code: String(data.get("code") || "128820").toUpperCase(),
+    code: normalizedCode,
     limit: Number(data.get("limit") || 200),
   };
+}
+
+function normalizeStockCode(input) {
+  const compact = String(input || "").trim();
+  if (/^[a-z0-9]{6}$/i.test(compact)) {
+    return compact.toUpperCase();
+  }
+
+  const normalizedName = compact.toLowerCase().replace(/\s+/g, "");
+  if (!normalizedName) return "128820";
+
+  if (Object.prototype.hasOwnProperty.call(STOCK_NAME_TO_CODE, normalizedName)) {
+    return STOCK_NAME_TO_CODE[normalizedName];
+  }
+
+  const matchedName = Object.keys(STOCK_NAME_TO_CODE).find((name) =>
+    name.includes(normalizedName),
+  );
+  return matchedName ? STOCK_NAME_TO_CODE[matchedName] : compact.toUpperCase();
 }
 
 function periodLabel(period) {
