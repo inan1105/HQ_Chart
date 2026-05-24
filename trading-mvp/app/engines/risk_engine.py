@@ -56,7 +56,24 @@ def check_event_flags(signal: SignalInput) -> bool:
         return False
     if flags.market_closed:
         return False
+    if flags.blackout:
+        return False
     return True
+
+
+def check_instrument_policy(signal: SignalInput) -> bool:
+    blocked = ["option", "futures", "crypto"]
+    if signal.instrument_type in blocked:
+        return False
+    if signal.instrument_type == "etf" and signal.theme and "leverage" in signal.theme.lower():
+        return False
+    return True
+
+
+def check_stale_quote(signal: SignalInput) -> bool:
+    if signal.metadata is None:
+        return True
+    return signal.metadata.latency_ms <= 3000
 
 
 def check_duplicate_order(signal: SignalInput, window_sec: int = 300) -> bool:
@@ -84,6 +101,8 @@ def hard_gate(signal: SignalInput, portfolio: PortfolioState, policy: UserPolicy
         "spread": check_spread(signal, policy),
         "liquidity": check_liquidity(signal),
         "event_flags": check_event_flags(signal),
+        "instrument_policy": check_instrument_policy(signal),
+        "stale_quote": check_stale_quote(signal),
         "duplicate_order": check_duplicate_order(signal),
     }
 
