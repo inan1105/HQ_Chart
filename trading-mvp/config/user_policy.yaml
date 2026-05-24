@@ -1,0 +1,69 @@
+# Trading MVP User Policy
+# Purpose: User-specific static risk and execution policy.
+
+user_id: user_001
+user_name: HwangQ
+policy_version: policy-0.1
+timezone: Asia/Seoul
+
+profile:
+  investor_type: active_trader
+  primary_goal: monthly_return
+  target_monthly_return_ratio: 0.10
+  risk_profile: aggressive_controlled
+  investment_horizon:
+    - intraday
+    - swing
+  markets:
+    - KR
+    - US
+  instruments_allowed:
+    - stock
+    - etf
+  instruments_blocked:
+    - option
+    - futures
+    - crypto
+    - leveraged_etf
+
+capital:
+  base_currency: KRW
+  total_capital_krw: 50000000
+  cash_min_ratio: 0.20
+  cash_warning_ratio: 0.15
+
+risk_limits:
+  max_single_trade_loss_ratio: 0.05
+  max_daily_loss_ratio: 0.02
+  max_weekly_loss_ratio: 0.05
+  max_monthly_loss_ratio: 0.10
+  max_total_drawdown_ratio: 0.20
+  max_single_position_ratio: 0.15
+  max_sector_ratio: 0.35
+  max_country_ratio: 0.70
+  max_currency_ratio: 0.80
+  min_rrr: 1.80
+
+approval:
+  approval_required: true
+  auto_execute_allowed: false
+  approval_timeout_sec: 60
+  channels:
+    - telegram
+  reject_on_timeout: true
+
+execution:
+  default_order_type: LIMIT
+  time_in_force: DAY
+  max_spread_ratio: 0.01
+  max_expected_slippage_ratio: 0.003
+  allow_premarket_us: false
+  allow_afterhours_us: false
+  allow_kr_closing_auction: false
+  duplicate_order_window_sec: 300
+
+blackout:
+  block_before_earnings_minutes: 30
+  block_before_macro_event_minutes: 15
+  block_if_halt: true
+  block_if_market_closed: true

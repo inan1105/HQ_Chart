@@ -1,0 +1,48 @@
+{
+  "as_of": "2026-05-24T09:00:00+09:00",
+  "base_currency": "KRW",
+  "fx_rates": {
+    "USD_KRW": 1360.0
+  },
+  "summary": {
+    "total_equity_krw": 50000000,
+    "cash_krw": 12000000,
+    "cash_ratio": 0.24,
+    "daily_loss_ratio": -0.005,
+    "monthly_loss_ratio": -0.03
+  },
+  "positions": [
+    {
+      "ticker": "QQQ",
+      "market": "US",
+      "instrument_type": "etf",
+      "sector": "technology",
+      "country": "US",
+      "currency": "USD",
+      "qty": 20,
+      "avg_price": 380.0,
+      "market_price": 392.0,
+      "market_value_local": 7840.0,
+      "market_value_krw": 10662400.0,
+      "unrealized_pnl_krw": 326400.0,
+      "position_weight": 0.2132,
+      "theme": "nasdaq100"
+    },
+    {
+      "ticker": "005930",
+      "market": "KR",
+      "instrument_type": "stock",
+      "sector": "semiconductor",
+      "country": "KR",
+      "currency": "KRW",
+      "qty": 100,
+      "avg_price": 75000.0,
+      "market_price": 78000.0,
+      "market_value_local": 7800000.0,
+      "market_value_krw": 7800000.0,
+      "unrealized_pnl_krw": 300000.0,
+      "position_weight": 0.156,
+      "theme": "memory_semiconductor"
+    }
+  ]
+}

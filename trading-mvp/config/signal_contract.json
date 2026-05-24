@@ -1,0 +1,58 @@
+{
+  "example": {
+    "signal_id": "SIG20260524_001",
+    "source": "webhook",
+    "timestamp": "2026-05-24T09:01:00+09:00",
+    "ticker": "NVDA",
+    "market": "US",
+    "instrument_type": "stock",
+    "direction": "BUY",
+    "price": 150.2,
+    "currency": "USD",
+    "sector": "semiconductor",
+    "country": "US",
+    "theme": "AI_GPU",
+    "planned_order": {
+      "order_type": "LIMIT",
+      "planned_qty": 10,
+      "planned_cash": 1502,
+      "limit_price": 150.2,
+      "time_in_force": "DAY"
+    },
+    "scores": {
+      "trend": 4,
+      "momentum": 3,
+      "volume": 5,
+      "news": 2,
+      "orderflow": 3,
+      "volatility": 1
+    },
+    "rrr": {
+      "entry_price": 150.2,
+      "stop_loss": 142.0,
+      "take_profit": 170.0,
+      "rrr_value": 2.41
+    },
+    "event_flags": {
+      "earnings": false,
+      "fomc": false,
+      "cpi": false,
+      "disclosure": false,
+      "halt": false,
+      "market_closed": false,
+      "blackout": false
+    },
+    "execution_quality": {
+      "spread_ratio": 0.0005,
+      "expected_slippage_ratio": 0.0008,
+      "liquidity_score": 9,
+      "session_state": "regular"
+    },
+    "metadata": {
+      "source_system": "TradingViewWebhook",
+      "created_by": "scanner",
+      "data_quality_score": 9,
+      "latency_ms": 250
+    }
+  }
+}

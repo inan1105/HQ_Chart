@@ -1,0 +1,93 @@
+# Market Data Source Map
+
+version: data-map-0.1
+timezone: Asia/Seoul
+
+priority:
+  price_realtime:
+    primary: broker_api
+    secondary: websocket_feed
+    fallback: delayed_quote
+  macro:
+    primary: official_or_reputable_public_api
+    fallback: manual_google_sheets
+  news:
+    primary: paid_news_api
+    fallback: rss_or_manual
+
+markets:
+  KR:
+    price:
+      primary: KIS_OpenAPI
+      fallback: NaverFinance_manual_or_csv
+    quote_fields:
+      - last_price
+      - bid
+      - ask
+      - volume
+      - change_pct
+    disclosures:
+      primary: DART
+      fallback: manual_google_sheets
+    calendar:
+      primary: KRX_calendar
+      fallback: manual_google_sheets
+
+  US:
+    price:
+      primary: broker_api_or_market_data_vendor
+      fallback: yahoo_finance_delayed
+    quote_fields:
+      - last_price
+      - bid
+      - ask
+      - volume
+      - premarket_price
+      - afterhours_price
+    filings:
+      primary: SEC_EDGAR
+      fallback: manual_google_sheets
+    calendar:
+      primary: exchange_calendar
+      fallback: manual_google_sheets
+
+macro:
+  vix:
+    symbol: ^VIX
+    source: market_data_vendor
+  dxy:
+    symbol: DXY
+    source: market_data_vendor
+  us10y:
+    symbol: UST10Y
+    source: official_or_market_data_vendor
+  us2y:
+    symbol: UST2Y
+    source: official_or_market_data_vendor
+  usdkrw:
+    symbol: USDKRW
+    source: fx_vendor_or_broker
+  wti:
+    symbol: WTI
+    source: futures_or_commodity_vendor
+
+events:
+  fomc:
+    source: official_calendar_or_manual
+  cpi:
+    source: official_calendar_or_manual
+  ppi:
+    source: official_calendar_or_manual
+  nfp:
+    source: official_calendar_or_manual
+  earnings:
+    source: earnings_calendar_vendor_or_manual
+
+data_quality_rules:
+  max_quote_latency_ms: 3000
+  reject_if_stale: true
+  stale_threshold_sec:
+    KR: 10
+    US: 10
+  require_timestamp: true
+  require_source_system: true

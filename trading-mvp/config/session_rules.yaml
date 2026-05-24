@@ -1,0 +1,50 @@
+# Trading Session Rules
+
+version: session-rules-0.1
+timezone: Asia/Seoul
+
+KR:
+  market: Korea Exchange
+  currency: KRW
+  regular_session:
+    start: "09:00"
+    end: "15:30"
+  pre_open:
+    enabled_for_order: false
+  closing_auction:
+    enabled_for_order: false
+    caution_minutes_before_close: 10
+  market_closed_behavior: REJECT
+  halt_behavior: REJECT
+  vi_behavior: WAIT
+  weekend_behavior: REJECT
+  holiday_behavior: REJECT
+
+US:
+  market: NASDAQ/NYSE
+  currency: USD
+  timezone: America/New_York
+  regular_session:
+    start: "09:30"
+    end: "16:00"
+  premarket:
+    enabled_for_order: false
+  afterhours:
+    enabled_for_order: false
+  market_closed_behavior: REJECT
+  halt_behavior: REJECT
+  earnings_blackout:
+    block_before_minutes: 30
+    block_after_minutes: 15
+  macro_blackout:
+    block_before_minutes: 15
+    block_after_minutes: 10
+  weekend_behavior: REJECT
+  holiday_behavior: REJECT
+
+global_rules:
+  reject_if_session_unknown: true
+  reject_if_clock_unsynced: true
+  max_clock_drift_sec: 5
+  duplicate_signal_window_sec: 300
+  duplicate_order_window_sec: 300
