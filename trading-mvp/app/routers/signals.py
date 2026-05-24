@@ -1,52 +1,67 @@
 from fastapi import APIRouter
 
-from app.schemas.signal_schema import SignalInput, PortfolioState, UserPolicy
+from app.schemas.signal_schema import SignalInput
 from app.engines.decision_engine import evaluate_decision
 from app.engines.risk_engine import hard_gate
+from app.engines.sizing_engine import calculate_order_qty
+from app.engines.session_engine import check_session
+from app.services.config_loader import load_user_policy, load_portfolio_state
 from app.services.approval_service import create_approval
 from app.services.message_builder import build_approval_message
 from app.services.telegram_service import send_message
+from app.services.audit_service import write_audit
 
 router = APIRouter(prefix="/signals", tags=["signals"])
 
 
 @router.post("/evaluate")
 def evaluate_signal(signal: SignalInput):
-    portfolio = PortfolioState(
-        total_equity=50000000,
-        cash=12000000,
-        daily_loss_ratio=-0.005,
-        monthly_loss_ratio=-0.03,
-        positions=[]
-    )
+    portfolio = load_portfolio_state()
+    policy = load_user_policy()
 
-    policy = UserPolicy(
-        max_daily_loss_ratio=0.02,
-        max_monthly_loss_ratio=0.10,
-        max_single_position_ratio=0.15,
-        max_sector_ratio=0.35,
-        min_rrr=1.80
-    )
+    session_check = check_session(signal.market)
 
     decision = evaluate_decision(signal)
     risk = hard_gate(signal, portfolio, policy)
 
+    sizing = None
     approval = None
     telegram_result = None
 
+    if not session_check["allowed"]:
+        write_audit("SESSION_BLOCKED", signal.signal_id, "BLOCKED", session_check["reason"])
+        return {
+            "decision": decision,
+            "risk": risk,
+            "session": session_check,
+            "sizing": None,
+            "approval": None,
+            "telegram": None
+        }
+
     if decision["order_allowed"] and risk["passed"]:
+        sizing = calculate_order_qty(signal, portfolio)
         approval = create_approval(
             decision=decision,
-            qty=10,
+            qty=sizing["qty"],
             limit_price=signal.price,
             stop_loss=signal.rrr.stop_loss,
             take_profit=signal.rrr.take_profit
         )
         telegram_result = send_message(build_approval_message(approval))
 
+    write_audit(
+        "SIGNAL_EVALUATED",
+        signal.signal_id,
+        decision["decision"],
+        f"score={decision['score']} gate={'PASS' if risk['passed'] else 'FAIL'}"
+    )
+
     return {
         "decision": decision,
         "risk": risk,
+        "session": session_check,
+        "sizing": sizing,
         "approval": approval,
         "telegram": telegram_result
     }
