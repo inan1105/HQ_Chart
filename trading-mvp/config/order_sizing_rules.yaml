@@ -1,0 +1,59 @@
+# Order Sizing Rules
+
+version: sizing-rules-0.1
+base_currency: KRW
+
+default_method: risk_based
+
+methods:
+  fixed_cash:
+    description: fixed cash amount per order
+    default_cash_krw: 1000000
+
+  fixed_qty:
+    description: fixed quantity per order
+    default_qty: 10
+
+  risk_based:
+    description: position size based on loss allowed between entry and stop
+    risk_per_trade_ratio: 0.005
+    max_risk_per_trade_ratio: 0.01
+    formula: "qty = floor((total_equity * risk_per_trade_ratio) / abs(entry_price - stop_loss))"
+
+  volatility_scaled:
+    description: reduce size when ATR or volatility is elevated
+    atr_multiplier_limit: 2.0
+    volatility_cut:
+      low: 1.0
+      medium: 0.7
+      high: 0.4
+
+caps:
+  max_order_cash_ratio: 0.10
+  max_single_position_ratio: 0.15
+  max_sector_additional_ratio: 0.05
+  min_order_cash_krw: 100000
+  max_order_cash_krw: 5000000
+
+rounding:
+  KR:
+    qty_rounding: 1
+    min_qty: 1
+  US:
+    qty_rounding: 1
+    min_qty: 1
+
+risk_to_reward:
+  min_rrr: 1.80
+  preferred_rrr: 2.00
+  strong_rrr: 3.00
+
+execution_adjustments:
+  if_spread_ratio_above_0_5_percent:
+    size_multiplier: 0.5
+  if_liquidity_score_below_5:
+    size_multiplier: 0.5
+  if_event_risk_warning:
+    size_multiplier: 0.5
+  if_hard_gate_fail:
+    size_multiplier: 0.0

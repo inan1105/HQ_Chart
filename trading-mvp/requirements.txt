@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+python-dotenv
+requests
+python-telegram-bot
+streamlit
+pandas
+pyyaml
