@@ -15,6 +15,8 @@ def check_session(market: str, event_flags: dict | None = None) -> dict:
             return {"allowed": False, "reason": "거래정지 상태", "code": "ERR_HALT"}
         if event_flags.get("market_closed"):
             return {"allowed": False, "reason": "장 마감 상태", "code": "ERR_MARKET_CLOSED"}
+        if event_flags.get("blackout"):
+            return {"allowed": False, "reason": "블랙아웃 기간", "code": "ERR_BLACKOUT"}
 
     now_utc = datetime.now(timezone.utc)
 

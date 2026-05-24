@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import monitoring, signals, approvals, orders, webhooks
+from app.routers import monitoring, signals, approvals, orders, webhooks, triggers
 
 app = FastAPI(
     title="Trading MVP API",
@@ -12,3 +12,4 @@ app.include_router(signals.router)
 app.include_router(approvals.router)
 app.include_router(orders.router)
 app.include_router(webhooks.router)
+app.include_router(triggers.router)

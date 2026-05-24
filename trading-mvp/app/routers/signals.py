@@ -19,7 +19,8 @@ def evaluate_signal(signal: SignalInput):
     portfolio = load_portfolio_state()
     policy = load_user_policy()
 
-    session_check = check_session(signal.market)
+    event_dict = signal.event_flags.model_dump() if signal.event_flags else None
+    session_check = check_session(signal.market, event_dict)
 
     decision = evaluate_decision(signal)
     risk = hard_gate(signal, portfolio, policy)

@@ -1,4 +1,8 @@
+from datetime import datetime, timedelta
+
 from app.schemas.signal_schema import SignalInput, PortfolioState, UserPolicy
+from app.db import SessionLocal
+from app.models import ApprovalModel
 
 
 def check_daily_loss(portfolio: PortfolioState, policy: UserPolicy) -> bool:
@@ -32,19 +36,70 @@ def check_sector_limit(signal: SignalInput, portfolio: PortfolioState, policy: U
     return sector_ratio <= policy.max_sector_ratio
 
 
+def check_spread(signal: SignalInput, policy: UserPolicy) -> bool:
+    if signal.execution_quality is None:
+        return True
+    return signal.execution_quality.spread_ratio <= policy.max_spread_ratio
+
+
+def check_liquidity(signal: SignalInput) -> bool:
+    if signal.execution_quality is None:
+        return True
+    return signal.execution_quality.liquidity_score >= 3.0
+
+
+def check_event_flags(signal: SignalInput) -> bool:
+    if signal.event_flags is None:
+        return True
+    flags = signal.event_flags
+    if flags.halt:
+        return False
+    if flags.market_closed:
+        return False
+    return True
+
+
+def check_duplicate_order(signal: SignalInput, window_sec: int = 300) -> bool:
+    db = SessionLocal()
+    try:
+        cutoff = datetime.utcnow() - timedelta(seconds=window_sec)
+        existing = db.query(ApprovalModel).filter(
+            ApprovalModel.ticker == signal.ticker,
+            ApprovalModel.direction == signal.direction,
+            ApprovalModel.created_at >= cutoff,
+            ApprovalModel.status.in_(["WAIT_CONFIRM", "APPROVED"])
+        ).first()
+        return existing is None
+    finally:
+        db.close()
+
+
 def hard_gate(signal: SignalInput, portfolio: PortfolioState, policy: UserPolicy) -> dict:
     checks = {
         "daily_loss": check_daily_loss(portfolio, policy),
         "monthly_loss": check_monthly_loss(portfolio, policy),
         "rrr": check_rrr(signal, policy),
         "single_position": check_single_position_limit(signal, portfolio, policy),
-        "sector_limit": check_sector_limit(signal, portfolio, policy)
+        "sector_limit": check_sector_limit(signal, portfolio, policy),
+        "spread": check_spread(signal, policy),
+        "liquidity": check_liquidity(signal),
+        "event_flags": check_event_flags(signal),
+        "duplicate_order": check_duplicate_order(signal),
     }
 
     failed = [k for k, v in checks.items() if not v]
 
+    warnings = []
+    if signal.execution_quality and signal.execution_quality.liquidity_score < 5.0:
+        warnings.append("liquidity_low")
+    if signal.event_flags and signal.event_flags.earnings:
+        warnings.append("earnings_nearby")
+    if signal.event_flags and signal.event_flags.blackout:
+        warnings.append("blackout_period")
+
     return {
         "passed": len(failed) == 0,
         "failed_rules": failed,
+        "warnings": warnings,
         "checks": checks
     }

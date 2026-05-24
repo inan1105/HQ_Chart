@@ -24,11 +24,13 @@ def load_json(filename: str) -> dict:
 def load_user_policy() -> UserPolicy:
     data = load_yaml("user_policy.yaml")
     limits = data["risk_limits"]
+    execution = data.get("execution", {})
     return UserPolicy(
         max_daily_loss_ratio=limits["max_daily_loss_ratio"],
         max_monthly_loss_ratio=limits["max_monthly_loss_ratio"],
         max_single_position_ratio=limits["max_single_position_ratio"],
         max_sector_ratio=limits["max_sector_ratio"],
+        max_spread_ratio=execution.get("max_spread_ratio", 0.01),
         min_rrr=limits["min_rrr"]
     )
 
