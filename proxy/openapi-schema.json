@@ -1,0 +1,117 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IamChart Stock API Proxy",
+    "description": "Proxy for IamChart Korean stock market data API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://<YOUR_WORKER_NAME>.workers.dev",
+      "description": "Cloudflare Worker Proxy (실제 Worker URL로 교체)"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "getStockHistory",
+        "summary": "한국 주식 시세 데이터 조회",
+        "description": "종목코드로 일봉/주봉/월봉 시세 데이터를 조회합니다.",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "query",
+            "required": true,
+            "description": "시장 구분: kospi(코스피) 또는 kodaq(코스닥)",
+            "schema": {
+              "type": "string",
+              "enum": ["kospi", "kodaq"],
+              "default": "kospi"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "description": "조회 기간: d(일봉), w(주봉), m(월봉)",
+            "schema": {
+              "type": "string",
+              "enum": ["d", "w", "m"],
+              "default": "d"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "description": "6자리 종목코드 (예: 005930, 000660)",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9]{6}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "조회 건수 (기본 200, 최대 500)",
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공 응답",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Result": {
+                      "type": "object",
+                      "properties": {
+                        "ResultCode": {
+                          "type": "integer",
+                          "description": "0이면 성공"
+                        },
+                        "ResultMessage": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "ResultData": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "bzDd": { "type": "string", "description": "기준일 (YYYYMMDD)" },
+                          "opnPrc": { "type": "number", "description": "시가" },
+                          "hgPrc": { "type": "number", "description": "고가" },
+                          "lwPrc": { "type": "number", "description": "저가" },
+                          "trdPrc": { "type": "number", "description": "종가" },
+                          "accTrdvol": { "type": "number", "description": "거래량" },
+                          "accTrdval": { "type": "number", "description": "거래대금" },
+                          "cmpprevddPrc": { "type": "number", "description": "전일대비" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 파라미터"
+          },
+          "502": {
+            "description": "업스트림 서버 접근 실패"
+          }
+        }
+      }
+    }
+  }
+}
