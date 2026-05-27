@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <?!= include('Css'); ?>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">IAMChart Technical Analyzer</p>
+          <h1>기술적분석 플랫폼</h1>
+        </div>
+        <div id="status" class="status">준비됨</div>
+      </header>
+
+      <div class="control-bar">
+        <label>
+          시장
+          <select id="market">
+            <option value="kospi" selected>KOSPI</option>
+            <option value="kosdaq">KOSDAQ</option>
+            <option value="nasdaq">NASDAQ</option>
+            <option value="nyse">NYSE</option>
+          </select>
+        </label>
+
+        <label>
+          주기
+          <select id="period">
+            <option value="d" selected>일봉</option>
+            <option value="w">주봉</option>
+            <option value="m">월봉</option>
+          </select>
+        </label>
+
+        <label>
+          종목코드/심볼
+          <input id="code" value="000660" />
+        </label>
+
+        <label>
+          데이터 수
+          <input id="limit" type="number" value="200" min="1" max="1000" />
+        </label>
+
+        <button class="btn-primary" onclick="loadData()">조회</button>
+        <button class="btn-secondary" onclick="openSettings()">설정</button>
+        <button class="btn-secondary" onclick="openHelpList()">도움말</button>
+      </div>
+
+      <section id="scoreBoard" class="score-board hidden">
+        <div class="score-composite">
+          <div class="score-label">종합 판정</div>
+          <div id="compositeScore" class="score-value">-</div>
+          <div id="compositeRubric" class="score-rubric">-</div>
+        </div>
+        <div id="individualScores" class="score-individuals"></div>
+      </section>
+
+      <section class="chart-stage">
+        <div id="chart"></div>
+        <div id="emptyState" class="empty-state">종목을 조회하세요.</div>
+      </section>
+
+      <section id="readout" class="readout">
+        마우스를 차트 위에 올리면 해당 시점의 값이 표시됩니다.
+      </section>
+    </section>
+  </main>
+
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeSettings()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>지표 설정</h2>
+        <button class="modal-close" onclick="closeSettings()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-toolbar">
+          <button class="btn-small" onclick="equalizeWeights()">가중치 균등 배분</button>
+          <button class="btn-small" onclick="resetAllSettings()">기본값 초기화</button>
+        </div>
+        <div id="settingsContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="applySettings()">적용</button>
+        <button class="btn-secondary" onclick="closeSettings()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeHelp()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="helpTitle">도움말</h2>
+        <button class="modal-close" onclick="closeHelp()">&times;</button>
+      </div>
+      <div id="helpBody" class="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeHelp()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <?!= include('Js'); ?>
+</body>
+</html>

@@ -6,8 +6,10 @@ const { URL } = require("node:url");
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
-const API_BASE =
-  "https://was002.iamchart.com/be.asp/ty.a/api/iamchart/SeriES/stock/history/v2";
+const PROXY_BASE = "https://iamchart-proxy.inan1105.workers.dev/";
+const API_PATH = "be.asp/ty.a/api/iamchart/SeriES/stock/history/v2";
+const VALID_MARKETS = ["kospi", "kosdaq", "nasdaq", "nyse"];
+const KR_MARKETS = ["kospi", "kosdaq"];
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -17,45 +19,42 @@ const mimeTypes = {
   ".ico": "image/x-icon",
 };
 
-function send(res, status, body, headers = {}) {
-  res.writeHead(status, {
-    "Cache-Control": "no-store",
-    ...headers,
-  });
+function send(res, status, body, headers) {
+  res.writeHead(status, { "Cache-Control": "no-store", ...headers });
   res.end(body);
 }
 
 function sendJson(res, status, payload) {
-  send(res, status, JSON.stringify(payload), {
-    "Content-Type": "application/json; charset=utf-8",
-  });
+  send(res, status, JSON.stringify(payload), { "Content-Type": "application/json; charset=utf-8" });
 }
 
 function validateHistoryRequest(requestUrl) {
-  const url = new URL(requestUrl, `http://localhost:${PORT}`);
+  const url = new URL(requestUrl, "http://localhost:" + PORT);
   const market = String(url.searchParams.get("market") || "").toLowerCase();
   const period = String(url.searchParams.get("period") || "").toLowerCase();
   const code = String(url.searchParams.get("code") || "").toUpperCase();
-  const limitRaw = String(url.searchParams.get("limit") || "");
-  const limit = Number(limitRaw);
+  const limit = Number(url.searchParams.get("limit") || "");
 
-  if (!["kospi", "kosdaq"].includes(market)) {
-    return { error: "market은 kospi 또는 kosdaq만 가능합니다." };
+  if (!VALID_MARKETS.includes(market)) {
+    return { error: "market은 kospi, kosdaq, nasdaq, nyse만 가능합니다." };
   }
-
   if (!["m", "d", "w"].includes(period)) {
     return { error: "period는 m, d, w만 가능합니다." };
   }
-
-  if (!/^[A-Z0-9]{6}$/.test(code)) {
-    return { error: "code는 6자리 영숫자여야 합니다." };
+  if (KR_MARKETS.includes(market)) {
+    if (!/^[A-Z0-9]{1,6}$/.test(code)) {
+      return { error: "국내 종목코드는 최대 6자리 영숫자입니다." };
+    }
+  } else {
+    if (!/^[A-Z]{1,5}$/.test(code)) {
+      return { error: "미국 종목심볼은 1~5자리 영문자입니다." };
+    }
   }
-
   if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
-    return { error: "limit은 1부터 1000 사이의 숫자여야 합니다." };
+    return { error: "limit은 1~1000 사이의 숫자여야 합니다." };
   }
 
-  const apiUrl = new URL(API_BASE);
+  const apiUrl = new URL(PROXY_BASE + API_PATH);
   apiUrl.searchParams.set("market", market);
   apiUrl.searchParams.set("period", period);
   apiUrl.searchParams.set("code", code);
@@ -64,111 +63,72 @@ function validateHistoryRequest(requestUrl) {
   return { apiUrl };
 }
 
-function requestText(url, allowCertificateFallback = false) {
+function requestText(url, rejectUnauthorized) {
   return new Promise((resolve, reject) => {
-    const req = https.get(
-      url,
-      {
-        rejectUnauthorized: !allowCertificateFallback,
-        headers: {
-          Accept: "application/json,text/plain,*/*",
-          "User-Agent": "iamchart-local-chart/1.0",
-        },
-      },
-      (apiRes) => {
-        let body = "";
-        apiRes.setEncoding("utf8");
-        apiRes.on("data", (chunk) => {
-          body += chunk;
-        });
-        apiRes.on("end", () => {
-          resolve({ statusCode: apiRes.statusCode || 500, body });
-        });
-      },
-    );
-
-    req.setTimeout(15000, () => {
-      req.destroy(new Error("API 요청 시간이 초과되었습니다."));
+    const req = https.get(url, {
+      rejectUnauthorized,
+      headers: { Accept: "application/json,text/plain,*/*", "User-Agent": "hq-chart-local/2.0" },
+    }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => { body += chunk; });
+      res.on("end", () => resolve({ statusCode: res.statusCode || 500, body }));
     });
+    req.setTimeout(15000, () => req.destroy(new Error("API 요청 시간 초과")));
     req.on("error", reject);
   });
 }
 
 async function fetchText(url) {
   try {
-    return await requestText(url);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (/certificate|self-signed|unable to verify/i.test(message)) {
-      return requestText(url, true);
+    return await requestText(url, true);
+  } catch (err) {
+    if (/certificate|self-signed|unable to verify/i.test(err.message || "")) {
+      return requestText(url, false);
     }
-    throw error;
+    throw err;
   }
 }
 
 async function handleHistory(req, res) {
   const validation = validateHistoryRequest(req.url || "");
-  if (validation.error) {
-    sendJson(res, 400, { error: validation.error });
-    return;
-  }
+  if (validation.error) { sendJson(res, 400, { error: validation.error }); return; }
 
   try {
     const apiRes = await fetchText(validation.apiUrl);
     if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
-      sendJson(res, 502, {
-        error: `원격 API 응답 오류: HTTP ${apiRes.statusCode}`,
-      });
+      sendJson(res, 502, { error: "원격 API 응답 오류: HTTP " + apiRes.statusCode });
       return;
     }
-
-    send(res, 200, apiRes.body, {
-      "Content-Type": "application/json; charset=utf-8",
-    });
-  } catch (error) {
-    sendJson(res, 502, {
-      error: error instanceof Error ? error.message : "API 요청에 실패했습니다.",
-    });
+    send(res, 200, apiRes.body, { "Content-Type": "application/json; charset=utf-8" });
+  } catch (err) {
+    sendJson(res, 502, { error: err.message || "API 요청 실패" });
   }
 }
 
 function serveStatic(req, res) {
-  const requestUrl = new URL(req.url || "/", `http://localhost:${PORT}`);
-  const requestedPath =
-    requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
-  const decodedPath = decodeURIComponent(requestedPath);
-  const filePath = path.resolve(ROOT, `.${decodedPath}`);
+  const requestUrl = new URL(req.url || "/", "http://localhost:" + PORT);
+  const requestedPath = requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
+  const filePath = path.resolve(ROOT, "." + decodeURIComponent(requestedPath));
 
   if (!filePath.startsWith(ROOT)) {
     send(res, 403, "Forbidden", { "Content-Type": "text/plain; charset=utf-8" });
     return;
   }
 
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      send(res, 404, "Not found", {
-        "Content-Type": "text/plain; charset=utf-8",
-      });
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      send(res, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
       return;
     }
-
-    send(res, 200, data, {
-      "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream",
-    });
+    send(res, 200, data, { "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream" });
   });
 }
 
 const server = http.createServer((req, res) => {
-  const requestUrl = new URL(req.url || "/", `http://localhost:${PORT}`);
-
-  if (requestUrl.pathname === "/api/history") {
-    handleHistory(req, res);
-    return;
-  }
-
+  const requestUrl = new URL(req.url || "/", "http://localhost:" + PORT);
+  if (requestUrl.pathname === "/api/history") { handleHistory(req, res); return; }
   serveStatic(req, res);
 });
 
-server.listen(PORT, () => {
-  console.log(`IAMChart local app: http://localhost:${PORT}`);
-});
+server.listen(PORT, () => { console.log("IAMChart Technical Analyzer: http://localhost:" + PORT); });

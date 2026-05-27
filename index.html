@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>IAMChart 기술지표 차트</title>
+    <title>IAMChart 기술적분석 플랫폼</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -11,8 +11,8 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">IAMChart API</p>
-            <h1>기술지표 차트</h1>
+            <p class="eyebrow">IAMChart Technical Analyzer</p>
+            <h1>기술적분석 플랫폼</h1>
           </div>
           <div id="status" class="status" role="status">준비됨</div>
         </header>
@@ -23,72 +23,92 @@
             <select id="market" name="market">
               <option value="kospi" selected>KOSPI</option>
               <option value="kosdaq">KOSDAQ</option>
+              <option value="nasdaq">NASDAQ</option>
+              <option value="nyse">NYSE</option>
             </select>
           </label>
 
           <label>
             주기
             <select id="period" name="period">
-              <option value="d" selected>일간</option>
-              <option value="w">주간</option>
-              <option value="m">월간</option>
+              <option value="d" selected>일봉</option>
+              <option value="w">주봉</option>
+              <option value="m">월봉</option>
             </select>
           </label>
 
           <label>
-            종목코드
-            <input
-              id="code"
-              name="code"
-              value="128820"
-              maxlength="6"
-              pattern="[A-Za-z0-9]{6}"
-              autocomplete="off"
-              required
-            />
+            종목코드/심볼
+            <input id="code" name="code" value="000660" autocomplete="off" required />
           </label>
 
           <label>
             데이터 수
-            <input
-              id="limit"
-              name="limit"
-              type="number"
-              min="1"
-              max="1000"
-              step="1"
-              value="200"
-              required
-            />
+            <input id="limit" name="limit" type="number" min="1" max="1000" step="1" value="200" required />
           </label>
 
-          <button type="submit">차트 생성</button>
+          <button type="submit" class="btn-primary">조회</button>
+          <button type="button" class="btn-secondary" onclick="openSettings()">설정</button>
+          <button type="button" class="btn-secondary" onclick="openHelpList()">도움말</button>
         </form>
 
-        <section class="chart-toolbar" aria-label="차트 정보">
-          <div id="summary" class="summary">kospi · d · 128820 · 200</div>
-          <div class="legend" aria-label="범례">
-            <span><i style="--color: #d33f49"></i>상승</span>
-            <span><i style="--color: #2474c6"></i>하락</span>
-            <span><i style="--color: #2d6cdf"></i>MA5</span>
-            <span><i style="--color: #ef8f22"></i>MA20</span>
-            <span><i style="--color: #16815c"></i>MA60</span>
-            <span><i style="--color: #7b4fc4"></i>MA100</span>
-            <span><i style="--color: #697386"></i>BB 10,2</span>
+        <section id="scoreBoard" class="score-board hidden">
+          <div class="score-composite">
+            <div class="score-label">종합 판정</div>
+            <div id="compositeScore" class="score-value">-</div>
+            <div id="compositeRubric" class="score-rubric">-</div>
           </div>
+          <div id="individualScores" class="score-individuals"></div>
         </section>
 
-        <section class="chart-stage">
-          <canvas id="chart" aria-label="주가, 거래량, MACD 차트"></canvas>
-          <div id="emptyState" class="empty-state" hidden>데이터가 없습니다.</div>
+        <section id="chartArea" class="chart-stage">
+          <div id="chart"></div>
+          <div id="emptyState" class="empty-state">종목을 조회하세요.</div>
         </section>
 
         <section id="readout" class="readout" aria-live="polite">
-          마우스를 차트 위에 올리면 선택한 날짜의 값이 표시됩니다.
+          마우스를 차트 위에 올리면 해당 시점의 값이 표시됩니다.
         </section>
       </section>
     </main>
 
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-backdrop" onclick="closeSettings()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>지표 설정</h2>
+          <button class="modal-close" onclick="closeSettings()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-toolbar">
+            <button class="btn-small" onclick="equalizeWeights()">가중치 균등 배분</button>
+            <button class="btn-small" onclick="resetAllSettings()">기본값 초기화</button>
+          </div>
+          <div id="settingsContent"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary" onclick="applySettings()">적용</button>
+          <button class="btn-secondary" onclick="closeSettings()">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="helpModal" class="modal hidden">
+      <div class="modal-backdrop" onclick="closeHelp()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="helpTitle">도움말</h2>
+          <button class="modal-close" onclick="closeHelp()">&times;</button>
+        </div>
+        <div id="helpBody" class="modal-body"></div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeHelp()">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="./indicators.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
