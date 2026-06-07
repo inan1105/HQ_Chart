@@ -51,16 +51,21 @@ function doPost(e) {
   try {
     update = JSON.parse(e.postData.contents);
   } catch (err) {
+    console.log('[doPost] JSON 파싱 실패 → 종료');
     return ok_();
   }
 
   // 2) 텍스트 메시지가 아닌 update(my_chat_member 등)는 종료
   if (!update.message || !update.message.text) {
+    console.log('[doPost] 텍스트 메시지 아님 → 종료 (update_id=' + (update && update.update_id) + ')');
     return ok_();
   }
 
-  // 3) 텔레그램이 같은 update_id 를 재전송하면 1회만 처리 (단, 실패 시에는 '처리'쪽으로 안전하게)
+  console.log('[doPost] 도착: update_id=' + update.update_id + ', text="' + update.message.text + '"');
+
+  // 3) 텔레그램이 같은 update_id 를 재전송하면 1회만 처리
   if (isDuplicateUpdate_(update.update_id)) {
+    console.log('[doPost] 중복 update 로 무시 → 종료 (update_id=' + update.update_id + ')');
     return ok_();
   }
 
@@ -71,8 +76,9 @@ function doPost(e) {
   }
 
   try {
-    // 4) 같은 질문 1분 내 재응답 차단 (잠금 실패 시에는 막지 않음 = 응답 보장)
+    // 4) 같은 질문 1분 내 재응답 차단
     if (isDuplicateQuestion_(chatId, userText)) {
+      console.log('[doPost] 동일 질문(1분) 으로 무시 → 종료 (text="' + userText + '")');
       return ok_();
     }
 
@@ -108,6 +114,7 @@ function doPost(e) {
     // 6) 로깅(실패해도 무시) 후 반드시 응답 전송
     logCommand_(chatId, userText, action, method, JSON.stringify(params), resultMessage);
     sendTelegramMessage_(chatId, resultMessage);
+    console.log('[doPost] 응답 전송 완료 (text="' + userText + '", action=' + action + ')');
     return ok_();
 
   } catch (err) {
