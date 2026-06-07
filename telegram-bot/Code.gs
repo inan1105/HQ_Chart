@@ -498,3 +498,117 @@ function testDuplicateGuard() {
       : '❌ 중복 차단 이상: 코드/배포 상태를 확인하세요.'
   );
 }
+
+// =============================================================
+// 폴링(getUpdates) 방식 — 웹훅 302 문제를 우회하는 안정적인 수신
+//  - 웹훅을 끄고, 1분마다 텔레그램에 "새 메시지 있니?"를 직접 물어봅니다.
+//  - 302 리디렉션이 끼어들 여지가 없어 모든 메시지를 빠짐없이 처리합니다.
+//  - 응답은 즉시 → 최대 1분 이내로 바뀝니다. (안정성과 맞바꾸는 부분)
+//
+// [전환 방법] setupPolling() 을 한 번만 실행하면 끝납니다.
+// =============================================================
+
+// 한 건의 update 를 처리해서 응답을 보냅니다. (폴링/웹훅 공용)
+function processUpdate_(update) {
+  if (!update || !update.message || !update.message.text) return;
+  const chatId = update.message.chat.id;
+  const userText = String(update.message.text || '').trim();
+  if (!userText) return;
+
+  let action = 'unknown';
+  let params = {};
+  let method = 'rule';
+  let resultMessage;
+
+  try {
+    const local = classifyLocally_(userText);
+    action = local.action;
+    params = local.params || {};
+    if (action === 'unknown' && OPENAI_API_KEY) {
+      const gpt = analyzeCommandWithGPT_(userText);
+      if (gpt && gpt.action) {
+        action = gpt.action;
+        params = gpt.params || {};
+        method = 'gpt';
+      }
+    }
+    resultMessage = routeAction_(action, params);
+  } catch (err) {
+    action = 'error';
+    method = 'error';
+    params = { error: String(err && err.message ? err.message : err) };
+    resultMessage = '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.\n예: 리스크 점검해줘 / 시장 브리핑 / 뉴스 요약해줘';
+  }
+
+  logCommand_(chatId, userText, action, method, JSON.stringify(params), resultMessage);
+  sendTelegramMessage_(chatId, resultMessage);
+}
+
+// 1분마다 자동 실행됨(트리거). 텔레그램에서 새 메시지를 받아 처리합니다.
+function pollUpdates() {
+  if (!TELEGRAM_BOT_TOKEN) return;
+
+  // 폴링이 겹쳐 도는 것을 막습니다. (지금 못 잡으면 이번 회차는 건너뜀)
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) return;
+
+  try {
+    let offset = Number(PROPS.getProperty('LAST_UPDATE_ID') || 0);
+    const url = 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN +
+      '/getUpdates?timeout=0&allowed_updates=%5B%22message%22%5D&offset=' + (offset + 1);
+
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const data = JSON.parse(res.getContentText());
+    if (!data.ok || !Array.isArray(data.result)) {
+      console.error('getUpdates 실패: ' + res.getContentText());
+      return;
+    }
+
+    for (let i = 0; i < data.result.length; i++) {
+      const update = data.result[i];
+      try {
+        processUpdate_(update);
+      } catch (e) {
+        console.error('processUpdate_ 실패: ' + (e && e.message ? e.message : e));
+      }
+      // 처리(또는 실패)한 update 는 다음부터 다시 안 받도록 offset 전진
+      if (update.update_id > offset) {
+        offset = update.update_id;
+        PROPS.setProperty('LAST_UPDATE_ID', String(offset));
+      }
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ★★★ 폴링 전환: 이 함수를 한 번만 실행하세요.
+//  1) 웹훅 제거(밀린 메시지도 비움)  2) 1분마다 pollUpdates 자동 실행 트리거 설치
+function setupPolling() {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN 스크립트 속성이 없습니다.');
+
+  // 1) 웹훅 제거 (getUpdates 를 쓰려면 웹훅이 없어야 함)
+  const del = UrlFetchApp.fetch(
+    'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/deleteWebhook?drop_pending_updates=true',
+    { muteHttpExceptions: true }
+  );
+  console.log('deleteWebhook: ' + del.getContentText());
+
+  // 2) 기존 pollUpdates 트리거가 있으면 제거(중복 방지)
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'pollUpdates') ScriptApp.deleteTrigger(t);
+  });
+
+  // 3) 1분마다 pollUpdates 실행하는 트리거 설치
+  ScriptApp.newTrigger('pollUpdates').timeBased().everyMinutes(1).create();
+
+  console.log('✅ 폴링 전환 완료. 이제 1분마다 새 메시지를 받아 응답합니다. (웹훅 사용 안 함)');
+}
+
+// 폴링을 끄고 싶을 때 (트리거 제거). 다시 웹훅으로 돌아가려면 registerWebhook() 실행.
+function stopPolling() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'pollUpdates') ScriptApp.deleteTrigger(t);
+  });
+  console.log('폴링 트리거를 제거했습니다.');
+}
