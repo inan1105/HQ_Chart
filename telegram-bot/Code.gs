@@ -476,3 +476,18 @@ function testClassify() {
       console.log(s + ' => ' + JSON.stringify(classifyLocally_(s)));
     });
 }
+
+// 중복 차단(재전송 무시)이 작동하는지 확인합니다. (텔레그램/시트 영향 없음)
+//  - 같은 update_id 로 두 번 검사 → 첫 번째 false(처리), 두 번째 true(무시) 가 정상입니다.
+function testDuplicateGuard() {
+  const fakeId = 'TEST_' + Date.now(); // 매번 새 값이라 깨끗하게 테스트됨
+  const first = isDuplicateUpdate_(fakeId);
+  const second = isDuplicateUpdate_(fakeId);
+  console.log('1번째 검사(처음 보는 메시지): ' + first + '  ← false 여야 정상');
+  console.log('2번째 검사(같은 메시지 재전송): ' + second + '  ← true(무시) 여야 정상');
+  console.log(
+    (first === false && second === true)
+      ? '✅ 중복 차단 정상 작동: 같은 메시지는 한 번만 처리됩니다.'
+      : '❌ 중복 차단 이상: 코드/배포 상태를 확인하세요.'
+  );
+}
