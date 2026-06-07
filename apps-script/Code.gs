@@ -5,6 +5,7 @@
  *  - 텔레그램에서 메시지를 입력하면 doPost 웹훅이 받아 GPT로 명령을 분류하고 응답한다.
  *  - 동일한 질문은 1분 이내에는 다시 응답하지 않는다. (isDuplicateQuestion_)
  *  - 텔레그램이 같은 update 를 재전송해도 한 번만 처리한다. (isDuplicateUpdate_)
+ *  - 모든 명령은 CommandLog 시트에 기록한다. (logCommand_ : 시트가 없으면 자동 생성)
  *
  * 최초 1회 설정
  *  - 프로젝트 설정 > 스크립트 속성에 아래 키를 등록하거나, setupCredentials_() 를 한 번 실행한다.
@@ -18,6 +19,9 @@ const PROPS = PropertiesService.getScriptProperties();
 const TELEGRAM_BOT_TOKEN = PROPS.getProperty('TELEGRAM_BOT_TOKEN');
 const OPENAI_API_KEY = PROPS.getProperty('OPENAI_API_KEY');
 const SPREADSHEET_ID = PROPS.getProperty('SPREADSHEET_ID');
+
+const LOG_SHEET_NAME = 'CommandLog';
+const LOG_HEADER = ['시간', '사용자메시지', 'GPT_ACTION', '파라미터', '처리결과'];
 
 function doGet() {
   return ContentService.createTextOutput('READY');
@@ -51,46 +55,53 @@ function doPost(e) {
       return ok_();
     }
 
-    const gptResult = analyzeCommandWithGPT_(userText);
-    const action = gptResult.action;
-    const params = gptResult.params || {};
+    // 5) GPT 분류 + 명령 실행 (실패해도 사용자에게는 반드시 응답을 보낸다)
+    let action = 'unknown';
+    let params = {};
+    let resultMessage;
 
-    let resultMessage = '';
-
-    switch (action) {
-      case 'market_briefing':
-        resultMessage = runMorningPatrol_(params);
-        break;
-      case 'news_summary':
-        resultMessage = runNewsSummary_(params);
-        break;
-      case 'risk_check':
-        resultMessage = runRiskWatch_(params);
-        break;
-      case 'macro_report':
-        resultMessage = runMacroReport_(params);
-        break;
-      case 'chart_analysis':
-        resultMessage = runChartAnalysis_(params);
-        break;
-      case 'data_update':
-        resultMessage = runDataUpdate_(params);
-        break;
-      case 'help':
-        resultMessage = getHelpMessage_();
-        break;
-      default:
-        resultMessage = '명령을 인식하지 못했습니다. 예: 오늘 시장 브리핑 보여줘, 리스크 점검해줘, 뉴스 요약해줘';
+    try {
+      const gptResult = analyzeCommandWithGPT_(userText);
+      action = gptResult.action;
+      params = gptResult.params || {};
+      resultMessage = routeAction_(action, params);
+    } catch (gptErr) {
+      action = 'error';
+      params = { error: String(gptErr && gptErr.message ? gptErr.message : gptErr) };
+      resultMessage = '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
     }
 
+    // 6) 로깅(비치명적) 후 응답 전송
     logCommand_(userText, action, JSON.stringify(params), resultMessage);
     sendTelegramMessage_(chatId, resultMessage);
 
     return ok_();
 
   } catch (err) {
-    logCommand_('ERROR', 'error', '', err.message);
+    logCommand_('ERROR', 'error', '', String(err && err.message ? err.message : err));
     return ok_();
+  }
+}
+
+// action 을 실제 핸들러로 라우팅한다.
+function routeAction_(action, params) {
+  switch (action) {
+    case 'market_briefing':
+      return runMorningPatrol_(params);
+    case 'news_summary':
+      return runNewsSummary_(params);
+    case 'risk_check':
+      return runRiskWatch_(params);
+    case 'macro_report':
+      return runMacroReport_(params);
+    case 'chart_analysis':
+      return runChartAnalysis_(params);
+    case 'data_update':
+      return runDataUpdate_(params);
+    case 'help':
+      return getHelpMessage_();
+    default:
+      return '명령을 인식하지 못했습니다. 예: 오늘 시장 브리핑 보여줘, 리스크 점검해줘, 뉴스 요약해줘';
   }
 }
 
@@ -217,10 +228,38 @@ unknown: 인식 실패
     muteHttpExceptions: true
   });
 
-  const data = JSON.parse(res.getContentText());
-  const jsonText = data.output[0].content[0].text;
+  const code = res.getResponseCode();
+  const body = res.getContentText();
+  if (code < 200 || code >= 300) {
+    throw new Error('OpenAI API 오류(' + code + '): ' + body);
+  }
 
+  const data = JSON.parse(body);
+  const jsonText = extractOutputText_(data);
   return JSON.parse(jsonText);
+}
+
+// OpenAI Responses API 응답에서 출력 텍스트를 안전하게 추출한다.
+function extractOutputText_(data) {
+  // 신형: output_text 헬퍼가 있으면 우선 사용
+  if (data.output_text) {
+    return data.output_text;
+  }
+  // 표준: output[].content[].text 탐색
+  if (Array.isArray(data.output)) {
+    for (let i = 0; i < data.output.length; i++) {
+      const item = data.output[i];
+      if (item && Array.isArray(item.content)) {
+        for (let j = 0; j < item.content.length; j++) {
+          const c = item.content[j];
+          if (c && typeof c.text === 'string') {
+            return c.text;
+          }
+        }
+      }
+    }
+  }
+  throw new Error('OpenAI 응답에서 텍스트를 찾지 못했습니다: ' + JSON.stringify(data));
 }
 
 function runMorningPatrol_(params) {
@@ -274,10 +313,25 @@ function sendTelegramMessage_(chatId, text) {
   });
 }
 
+// CommandLog 시트에 기록한다.
+//  - 시트(탭)가 없으면 자동 생성한다.
+//  - 비어 있으면 헤더를 먼저 넣는다.
+//  - 로깅 실패가 텔레그램 응답을 막지 않도록 예외를 삼킨다.
 function logCommand_(userText, action, params, result) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName('CommandLog');
-  sheet.appendRow([new Date(), userText, action, params, result]);
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let sheet = ss.getSheetByName(LOG_SHEET_NAME);
+    if (!sheet) {
+      sheet = ss.insertSheet(LOG_SHEET_NAME);
+    }
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(LOG_HEADER);
+    }
+    sheet.appendRow([new Date(), userText, action, params, result]);
+  } catch (err) {
+    // 로깅 실패는 응답을 막지 않는다. 실행 로그에만 남긴다.
+    console.error('logCommand_ 실패: ' + (err && err.message ? err.message : err));
+  }
 }
 
 function ok_() {
@@ -294,6 +348,11 @@ function setupCredentials_() {
     OPENAI_API_KEY: '여기에_OPENAI_API_KEY',
     SPREADSHEET_ID: '여기에_스프레드시트_ID'
   });
+}
+
+// 시트 로깅이 정상 동작하는지 단독으로 확인한다.
+function testLogging() {
+  logCommand_('테스트 메시지', 'help', '{}', '로깅 테스트 성공');
 }
 
 function testWebhook() {
