@@ -205,14 +205,18 @@ function routeAction_(action, params) {
 }
 
 // === 중복 update 차단 (캐시만 사용: 잠금 충돌로 메시지를 버리는 일을 없앰) ===
-// [변경점] LockService 제거. 잠금 경합(메시지 몰림 + 트리거 동시 실행)으로
-//          메시지가 조용히 사라지던 문제를 해결합니다.
+// [변경점] LockService 제거. 잠금 경합(메시지 몰림)으로 메시지가 사라지던 문제 해결.
+// [중요] 텔레그램이 같은 메시지(update_id)를 약 11분 뒤 재전송해도 무시하도록
+//        기억 시간을 6시간(21600초, 캐시 최대)으로 둡니다.
+//        기존 600초(10분)는 재전송 간격(~11분)보다 짧아, 막 만료된 뒤 재전송이 와서
+//        "처음 보는 메시지"로 착각 → 11분마다 같은 응답을 반복하던 원인이었습니다.
+//        update_id 는 메시지마다 고유하므로 길게 기억해도 정상 입력을 막지 않습니다.
 function isDuplicateUpdate_(updateId) {
   if (updateId === undefined || updateId === null) return false;
   const cache = CacheService.getScriptCache();
   const key = 'update_' + updateId;
   if (cache.get(key)) return true;   // 이미 처리한 update
-  cache.put(key, '1', 600);          // 10분간 기억
+  cache.put(key, '1', 21600);        // 6시간 기억 (재전송 반복 방지)
   return false;
 }
 
@@ -400,14 +404,15 @@ function testLogging() {
 //  - drop_pending_updates=true 로 밀려 있던 메시지도 비웁니다.
 function registerWebhook() {
   if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN 스크립트 속성이 없습니다.');
-  if (!WEBAPP_URL || WEBAPP_URL.indexOf('http') !== 0 || WEBAPP_URL.indexOf('/exec') === -1) {
+  const cleanUrl = String(WEBAPP_URL || '').trim(); // 앞뒤 공백 제거 (실수 방지)
+  if (cleanUrl.indexOf('http') !== 0 || cleanUrl.indexOf('/exec') === -1) {
     throw new Error('WEBAPP_URL 에 /exec 로 끝나는 실제 웹앱 주소를 붙여넣으세요.');
   }
   const api = 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/setWebhook';
   const res = UrlFetchApp.fetch(api, {
     method: 'post',
     contentType: 'application/json',
-    payload: JSON.stringify({ url: WEBAPP_URL, drop_pending_updates: true }),
+    payload: JSON.stringify({ url: cleanUrl, drop_pending_updates: true }),
     muteHttpExceptions: true
   });
   console.log('setWebhook 결과: ' + res.getContentText());
