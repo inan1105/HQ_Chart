@@ -204,59 +204,27 @@ function routeAction_(action, params) {
   }
 }
 
-// === 중복 update 차단 (캐시 우선, 잠금 실패해도 '처리'를 막지 않음) ===
+// === 중복 update 차단 (캐시만 사용: 잠금 충돌로 메시지를 버리는 일을 없앰) ===
+// [변경점] LockService 제거. 잠금 경합(메시지 몰림 + 트리거 동시 실행)으로
+//          메시지가 조용히 사라지던 문제를 해결합니다.
 function isDuplicateUpdate_(updateId) {
   if (updateId === undefined || updateId === null) return false;
-
   const cache = CacheService.getScriptCache();
   const key = 'update_' + updateId;
-
-  const lock = LockService.getScriptLock();
-  let locked = false;
-  try {
-    lock.waitLock(3000);
-    locked = true;
-  } catch (e) {
-    // [변경점] 잠금 실패해도 메시지를 버리지 않습니다. 캐시만으로 가볍게 중복을 거릅니다.
-    if (cache.get(key)) return true;
-    cache.put(key, '1', 600);
-    return false;
-  }
-
-  try {
-    if (cache.get(key)) return true;   // 이미 처리한 update
-    cache.put(key, '1', 600);          // 10분간 기억
-    return false;
-  } finally {
-    if (locked) lock.releaseLock();
-  }
+  if (cache.get(key)) return true;   // 이미 처리한 update
+  cache.put(key, '1', 600);          // 10분간 기억
+  return false;
 }
 
-// === 동일 질문 1분 차단 (잠금 실패 시에는 차단하지 않음 = 응답 보장) ===
+// === 동일 질문 1분 차단 (캐시만 사용) ===
 function isDuplicateQuestion_(chatId, userText) {
   const normalized = String(userText).replace(/\s+/g, '').toLowerCase();
   if (!normalized) return false;
-
   const cache = CacheService.getScriptCache();
   const key = 'q_' + chatId + '_' + hashText_(normalized);
-
-  const lock = LockService.getScriptLock();
-  let locked = false;
-  try {
-    lock.waitLock(3000);
-    locked = true;
-  } catch (e) {
-    // [변경점] 잠금 실패 시 '중복'으로 단정하지 않습니다. (침묵 방지)
-    return false;
-  }
-
-  try {
-    if (cache.get(key)) return true;   // 1분 내 동일 질문
-    cache.put(key, '1', 60);           // 1분 기억
-    return false;
-  } finally {
-    if (locked) lock.releaseLock();
-  }
+  if (cache.get(key)) return true;   // 1분 내 동일 질문
+  cache.put(key, '1', 60);           // 1분 기억
+  return false;
 }
 
 // 캐시 키 길이 제한을 위해 MD5 해시 사용
