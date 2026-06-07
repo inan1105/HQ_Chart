@@ -36,7 +36,10 @@ const OPENAI_API_KEY = PROPS.getProperty('OPENAI_API_KEY'); // 없어도 됨(보
 const SPREADSHEET_ID = PROPS.getProperty('SPREADSHEET_ID');
 
 const LOG_SHEET_NAME = 'CommandLog';
-const LOG_HEADER = ['시간', '사용자메시지', 'ACTION', '분류방법', '파라미터', '처리결과'];
+const LOG_HEADER = ['시간', '채팅ID', '사용자메시지', 'ACTION', '분류방법', '파라미터', '처리결과'];
+
+// ★ 여기에 "지금 READY가 뜨는" 웹앱 /exec 주소를 붙여넣고 registerWebhook() 를 한 번 실행하세요.
+const WEBAPP_URL = '여기에_지금_READY가_뜨는_exec_주소_붙여넣기';
 
 function doGet() {
   return ContentService.createTextOutput('READY');
@@ -103,7 +106,7 @@ function doPost(e) {
     }
 
     // 6) 로깅(실패해도 무시) 후 반드시 응답 전송
-    logCommand_(userText, action, method, JSON.stringify(params), resultMessage);
+    logCommand_(chatId, userText, action, method, JSON.stringify(params), resultMessage);
     sendTelegramMessage_(chatId, resultMessage);
     return ok_();
 
@@ -114,7 +117,7 @@ function doPost(e) {
     } catch (sendErr) {
       // 전송까지 실패하면 더는 할 수 있는 게 없습니다.
     }
-    logCommand_(userText || 'ERROR', 'error', 'fatal', '', String(err && err.message ? err.message : err));
+    logCommand_(chatId, userText || 'ERROR', 'error', 'fatal', '', String(err && err.message ? err.message : err));
     return ok_();
   }
 }
@@ -389,14 +392,14 @@ function sendTelegramMessage_(chatId, text) {
 }
 
 // CommandLog 시트에 기록 (실패해도 응답을 막지 않음)
-function logCommand_(userText, action, method, params, result) {
+function logCommand_(chatId, userText, action, method, params, result) {
   try {
     if (!SPREADSHEET_ID) return;
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheet = ss.getSheetByName(LOG_SHEET_NAME);
     if (!sheet) sheet = ss.insertSheet(LOG_SHEET_NAME);
     if (sheet.getLastRow() === 0) sheet.appendRow(LOG_HEADER);
-    sheet.appendRow([new Date(), userText, action, method, params, result]);
+    sheet.appendRow([new Date(), String(chatId), userText, action, method, params, result]);
   } catch (err) {
     console.error('logCommand_ 실패: ' + (err && err.message ? err.message : err));
   }
@@ -417,7 +420,67 @@ function setupCredentials_() {
 
 // 시트 로깅 단독 점검
 function testLogging() {
-  logCommand_('테스트 메시지', 'help', 'rule', '{}', '로깅 테스트 성공');
+  logCommand_(123456789, '테스트 메시지', 'help', 'rule', '{}', '로깅 테스트 성공');
+}
+
+// =============================================================
+// 운영 도우미 함수들 (편집기에서 '실행'으로 한 번씩 누르세요)
+// =============================================================
+
+// ★★★ 가장 중요: 텔레그램 웹훅을 "지금 작동하는 이 배포"로 다시 연결합니다.
+//  - 사용법: 위쪽 WEBAPP_URL 에 지금 READY가 뜨는 /exec 주소를 붙여넣고 이 함수를 실행.
+//  - drop_pending_updates=true 로 밀려 있던 메시지도 비웁니다.
+function registerWebhook() {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN 스크립트 속성이 없습니다.');
+  if (!WEBAPP_URL || WEBAPP_URL.indexOf('http') !== 0 || WEBAPP_URL.indexOf('/exec') === -1) {
+    throw new Error('WEBAPP_URL 에 /exec 로 끝나는 실제 웹앱 주소를 붙여넣으세요.');
+  }
+  const api = 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/setWebhook';
+  const res = UrlFetchApp.fetch(api, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ url: WEBAPP_URL, drop_pending_updates: true }),
+    muteHttpExceptions: true
+  });
+  console.log('setWebhook 결과: ' + res.getContentText());
+  checkWebhook();
+}
+
+// 웹훅 현재 상태 확인 (url / 오류 / 밀린 개수)
+function checkWebhook() {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN 스크립트 속성이 없습니다.');
+  const api = 'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/getWebhookInfo';
+  const res = UrlFetchApp.fetch(api, { muteHttpExceptions: true });
+  console.log('getWebhookInfo: ' + res.getContentText());
+}
+
+// 이 프로젝트에 설치된 트리거 목록을 보여줍니다.
+//  - '데이터 업데이트해줘'를 10분마다 보내는 시간 트리거의 정체를 여기서 확인하세요.
+//  - 지우려면 Apps Script 왼쪽 [트리거(시계 아이콘)] 메뉴에서 해당 트리거를 삭제하면 됩니다.
+function listTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  if (!triggers.length) {
+    console.log('설치된 트리거가 없습니다.');
+    return;
+  }
+  triggers.forEach(function (t, i) {
+    console.log(
+      (i + 1) + '. 함수=' + t.getHandlerFunction() +
+      ' / 종류=' + t.getEventType() +
+      ' / 소스=' + t.getTriggerSource()
+    );
+  });
+}
+
+// CommandLog 헤더가 옛 버전이라 열이 어긋날 때, 헤더만 새로 맞춥니다.
+//  (기존 데이터는 보존됩니다. 1행 헤더만 새 형식으로 교체)
+function fixLogHeader() {
+  if (!SPREADSHEET_ID) throw new Error('SPREADSHEET_ID 가 없습니다.');
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(LOG_SHEET_NAME);
+  if (!sheet) { ss.insertSheet(LOG_SHEET_NAME); return; }
+  sheet.getRange(1, 1, 1, LOG_HEADER.length).setValues([LOG_HEADER]);
+  console.log('CommandLog 헤더를 새 형식으로 맞췄습니다.');
 }
 
 // 웹훅 동작 단독 점검 (실제 채팅 ID로 바꾸면 텔레그램에 실제로 전송됨)
