@@ -1,0 +1,81 @@
+# ============================================================
+# Render Blueprint — KOStockCrewAI 공개 배포 설정
+# ------------------------------------------------------------
+# 이 파일은 저장소 루트에 있어야 Render 가 자동 인식합니다.
+# 빌드 대상은 'KOStockCrewAI/' 하위 디렉토리이며,
+# 저장소 루트의 기존 JS(Vercel) 앱은 전혀 건드리지 않습니다.
+#
+# 구성:
+#   1) PostgreSQL 데이터베이스 (관리형, free)
+#   2) FastAPI API 웹서비스   → 공개 https 도메인 (/docs 에서 테스트)
+#   3) Streamlit UI 웹서비스  → 공개 https 도메인 (시각 화면)
+#
+# 실제 API Key(OPENAI/DART/ECOS/KOSCOM)는 코드에 넣지 않고
+# Render 대시보드의 Environment 에서 입력합니다(sync: false).
+# 키가 없어도 샘플 데이터로 앱은 동작합니다.
+# ============================================================
+
+databases:
+  - name: kostock-db
+    plan: free
+    databaseName: kostockcrewai
+    user: postgres
+
+services:
+  # ---------- FastAPI API 서버 ----------
+  - type: web
+    name: kostock-api
+    runtime: docker
+    plan: free
+    dockerfilePath: KOStockCrewAI/Dockerfile
+    dockerContext: KOStockCrewAI
+    # Render 가 주입하는 $PORT 로 바인딩합니다.
+    dockerCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # DB 주소는 위 데이터베이스에서 자동 주입(코드가 +psycopg2 로 정규화)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kostock-db
+          property: connectionString
+      # ↓ 실제 키는 Render 대시보드에서 직접 입력하세요(여기에 쓰지 않음)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DART_API_KEY
+        sync: false
+      - key: ECOS_API_KEY
+        sync: false
+      - key: KOSCOM_API_KEY
+        sync: false
+      - key: KOSCOM_BASE_URL
+        sync: false
+      # ↓ 기본값이 있어 그대로 둬도 되는 설정값
+      - key: KOSCOM_AUTH_TYPE
+        value: bearer
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      - key: REPORT_DIR
+        value: reports
+      - key: ECOS_BASE_RATE_STAT_CODE
+        value: 722Y001
+      - key: ECOS_BASE_RATE_ITEM_CODE
+        value: "0101000"
+
+  # ---------- Streamlit UI ----------
+  - type: web
+    name: kostock-ui
+    runtime: docker
+    plan: free
+    dockerfilePath: KOStockCrewAI/Dockerfile
+    dockerContext: KOStockCrewAI
+    dockerCommand: streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    autoDeploy: true
+    envVars:
+      # UI 가 호출할 API 주소(같은 블루프린트의 API 서비스 호스트명).
+      # streamlit_app.py 가 scheme 없는 호스트명에 https:// 를 자동으로 붙입니다.
+      - key: API_BASE
+        fromService:
+          type: web
+          name: kostock-api
+          property: host

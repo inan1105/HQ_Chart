@@ -25,6 +25,12 @@ import streamlit as st
 # FastAPI 서버 주소. 환경변수 API_BASE 가 있으면 그것을, 없으면 로컬 기본값 사용.
 API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
 
+# 클라우드 호스트(Render 등)는 도메인만(scheme 없이) 넘겨줄 수 있습니다.
+# 'http' 로 시작하지 않으면 https:// 를 붙여 줍니다.
+if API_BASE and not API_BASE.startswith("http"):
+    API_BASE = f"https://{API_BASE}"
+API_BASE = API_BASE.rstrip("/")
+
 # 페이지 기본 설정
 st.set_page_config(page_title="KOStockCrewAI MVP", page_icon="📊", layout="centered")
 

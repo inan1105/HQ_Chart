@@ -58,4 +58,12 @@ def root():
 @app.on_event("startup")
 def on_startup():
     """서버 시작 시 한 번 실행됩니다."""
+    # 배포 환경에서 별도 마이그레이션 없이 동작하도록 테이블을 자동 생성합니다.
+    # (IF NOT EXISTS 라 안전하며, 실패해도 앱은 계속 시작합니다.)
+    try:
+        from app.db.database import init_db
+
+        init_db()
+    except Exception as exc:
+        logger.warning(f"[Startup] DB 초기화 건너뜀: {exc}")
     logger.info("KOStockCrewAI API 서버가 시작되었습니다. /docs 에서 테스트하세요.")

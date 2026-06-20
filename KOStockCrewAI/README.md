@@ -161,6 +161,40 @@ docker compose up -d
 
 ---
 
+## 🌐 공개 인터넷 배포 (Render — 무료)
+
+KOStockCrewAI 는 FastAPI + Streamlit + PostgreSQL 스택이라 Vercel(정적/서버리스)에는 맞지 않습니다.
+대신 **Render** 로 한 번에 공개 배포할 수 있도록 저장소 **루트에 `render.yaml`** 블루프린트가 준비되어 있습니다.
+(저장소 루트의 기존 JS 앱/Vercel 배포는 전혀 영향받지 않습니다.)
+
+`render.yaml` 이 생성하는 것:
+1. **PostgreSQL** 데이터베이스 (관리형, free)
+2. **kostock-api** — FastAPI 서버 → 공개 https 도메인 (`/docs` 에서 테스트)
+3. **kostock-ui** — Streamlit 화면 → 공개 https 도메인
+
+### 배포 순서
+1. https://render.com 가입 후 GitHub 계정 연결
+2. 대시보드 → **New +** → **Blueprint** 선택
+3. 이 저장소(`inan1105/HQ_Chart`)와 배포할 **브랜치**를 선택
+   - Render 가 루트의 `render.yaml` 을 자동으로 읽어 3개 리소스를 만듭니다.
+4. **Apply** 클릭 → 빌드가 시작되고, 잠시 후 두 개의 공개 URL 이 발급됩니다:
+   - API: `https://kostock-api-xxxx.onrender.com/docs`
+   - UI : `https://kostock-ui-xxxx.onrender.com`
+5. **API Key 입력**: Render 대시보드 → `kostock-api` 서비스 → **Environment** 에서
+   `OPENAI_API_KEY`, `DART_API_KEY`, `ECOS_API_KEY`, `KOSCOM_API_KEY`, `KOSCOM_BASE_URL` 값을 입력
+   - 키는 코드/저장소에 절대 올리지 않고 **대시보드에서만** 설정합니다.
+   - 키가 없어도 `/sample/load/005930` → `/report/005930` 샘플 흐름은 동작합니다.
+
+### 동작 원리(자동화)
+- 앱 시작 시 `schema.sql` 을 자동 실행해 **테이블을 스스로 생성**합니다(별도 마이그레이션 불필요).
+- Render 가 주는 `DATABASE_URL`(`postgresql://...`)을 코드가 `postgresql+psycopg2://...` 로 자동 정규화합니다.
+- UI 서비스의 `API_BASE` 는 API 서비스 주소로 자동 연결됩니다.
+
+> ⚠️ **무료 플랜 주의**: Render free 서비스는 일정 시간 미사용 시 잠자기(cold start)에 들어가
+> 첫 접속이 느릴 수 있습니다. 또한 데이터 라이선스(특히 코스콤 재배포 제한)를 반드시 준수하세요.
+
+---
+
 ## 🧪 테스트 실행
 ```bat
 pytest -q
