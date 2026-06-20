@@ -50,6 +50,7 @@ def root():
             "2_샘플적재": "GET /sample/load/005930  (Key 없이 더미 데이터 적재)",
             "3_리포트": "GET /report/005930  (분석 결과 JSON)",
             "4_PDF": "GET /report/005930/pdf  (PDF 다운로드)",
+            "5_연동점검": "GET /diagnostics?live=true  (API Key 연결 상태 확인)",
         },
         "disclaimer": "본 서비스 결과는 정보 제공용이며 투자 권유가 아닙니다.",
     }

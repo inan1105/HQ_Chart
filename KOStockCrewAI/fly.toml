@@ -1,0 +1,48 @@
+# ============================================================
+# Fly.io 배포 설정 — KOStockCrewAI (FastAPI API)
+# ------------------------------------------------------------
+# 사용법(이 KOStockCrewAI 폴더 안에서 실행):
+#   1) flyctl 설치: https://fly.io/docs/hctl/install/
+#   2) fly auth login
+#   3) fly launch --no-deploy        (앱 이름/리전 확인, 이 파일 재사용)
+#   4) Postgres 생성 후 연결:
+#        fly postgres create
+#        fly postgres attach <DB앱이름>     → DATABASE_URL 시크릿 자동 설정
+#   5) API Key 시크릿 등록(코드에 넣지 말 것):
+#        fly secrets set OPENAI_API_KEY=... DART_API_KEY=... \
+#                        ECOS_API_KEY=... KOSCOM_API_KEY=... KOSCOM_BASE_URL=...
+#   6) fly deploy
+# ============================================================
+
+app = "kostock-crewai"          # 원하는 이름으로 변경 가능
+primary_region = "nrt"          # nrt=도쿄(한국과 가까움)
+
+[build]
+  dockerfile = "Dockerfile"
+
+# 키가 없어도 동작하는 기본 설정값(실제 키는 fly secrets 로 등록)
+[env]
+  PORT = "8000"
+  KOSCOM_AUTH_TYPE = "bearer"
+  OPENAI_MODEL = "gpt-5-mini"
+  REPORT_DIR = "reports"
+  ECOS_BASE_RATE_STAT_CODE = "722Y001"
+  ECOS_BASE_RATE_ITEM_CODE = "0101000"
+
+[http_service]
+  internal_port = 8000          # Dockerfile 의 uvicorn 포트와 일치
+  force_https = true
+  auto_stop_machines = "stop"   # 미사용 시 정지(비용 절감)
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+
+[[vm]]
+  # crewai/chromadb/pandas 등 무거운 의존성을 고려해 1GB 권장
+  size = "shared-cpu-1x"
+  memory = "1gb"

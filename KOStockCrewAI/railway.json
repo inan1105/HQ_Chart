@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "//": "Railway 배포 설정. 대시보드에서 Root Directory 를 'KOStockCrewAI' 로 지정하고, Postgres 플러그인 추가 후 DATABASE_URL=${{Postgres.DATABASE_URL}} 를 연결하세요. API Key 는 Variables 에 직접 입력합니다.",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

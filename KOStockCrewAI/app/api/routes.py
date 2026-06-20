@@ -39,6 +39,20 @@ def health():
     }
 
 
+@router.get("/diagnostics")
+def diagnostics(live: bool = False):
+    """
+    API Key 연동 상태를 점검합니다.
+    - live=false(기본): 키 설정 여부만 확인(빠름, 외부 호출 없음).
+    - live=true: 각 서비스에 가벼운 실제 호출을 시도해 연결 여부까지 확인.
+
+    ※ 응답에 실제 키 값은 절대 포함하지 않습니다(설정 여부만 표시). ※
+    """
+    from app.core.diagnostics import diagnose
+
+    return diagnose(live=live)
+
+
 @router.get("/report/{ticker}")
 def get_report(ticker: str):
     """
