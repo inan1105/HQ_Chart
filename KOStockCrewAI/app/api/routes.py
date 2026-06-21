@@ -15,9 +15,11 @@ FastAPI 엔드포인트(주소) 정의.
 from __future__ import annotations
 
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.logging import logger
@@ -51,6 +53,112 @@ def diagnostics(live: bool = False):
     from app.core.diagnostics import diagnose
 
     return diagnose(live=live)
+
+
+# ---------- 설정(API 키) 관리 ----------
+class SettingsBody(BaseModel):
+    """설정 등록/수정 요청 본문. 모두 선택값이며, 보낸 항목만 갱신됩니다."""
+    OPENAI_API_KEY: Optional[str] = None
+    DART_API_KEY: Optional[str] = None
+    ECOS_API_KEY: Optional[str] = None
+    KOSCOM_API_KEY: Optional[str] = None
+    KOSCOM_BASE_URL: Optional[str] = None
+    KOSCOM_AUTH_TYPE: Optional[str] = None
+    OPENAI_MODEL: Optional[str] = None
+    ECOS_BASE_RATE_STAT_CODE: Optional[str] = None
+    ECOS_BASE_RATE_ITEM_CODE: Optional[str] = None
+
+
+@router.get("/settings")
+def get_settings_status():
+    """
+    현재 설정 상태(설정됨/미설정)를 반환합니다.
+    ※ 보안: 실제 키 값은 절대 반환하지 않습니다(설정 여부만). ※
+    """
+    from app.core.config import settings_status
+
+    return {"status": settings_status()}
+
+
+@router.post("/settings")
+def update_settings_endpoint(body: SettingsBody):
+    """
+    API 키 등 설정을 등록/수정합니다.
+    - 보낸 항목만 반영(빈 값은 무시 = 기존 유지)
+    - 실행 중 설정에 즉시 반영 + .env 에 저장(재시작 없이 적용)
+    """
+    from app.core.config import update_settings, settings_status
+
+    applied = update_settings(body.model_dump())
+    return {
+        "applied": list(applied.keys()),
+        "message": "설정이 저장·적용되었습니다." if applied else "변경된 값이 없습니다.",
+        "status": settings_status(),
+    }
+
+
+@router.get("/resolve/{query}")
+def resolve_ticker(query: str):
+    """
+    종목명 또는 종목코드를 받아 표준 종목코드로 변환합니다.
+    찾는 순서: 숫자코드 → 내장 사전 → DB(stocks) → DART 매핑(키 필요).
+    """
+    q = (query or "").strip()
+    # 1) 숫자면 코드로 간주
+    digits = q.replace(" ", "")
+    if digits.isdigit():
+        code = digits.zfill(6)
+        from app.core.ticker_map import CODE_TO_NAME
+
+        # DB 가 잠시 불가하더라도 코드 변환은 실패하지 않도록 방어적으로 조회
+        name = CODE_TO_NAME.get(code)
+        try:
+            info = repo.load_stock_info(code)
+            if info and info.get("corp_name"):
+                name = info["corp_name"]
+        except Exception as exc:
+            logger.warning(f"[Resolve] 코드 조회 중 DB 건너뜀: {exc}")
+        return {"ticker": code, "corp_name": name, "source": "code"}
+
+    # 2) 내장 사전
+    from app.core.ticker_map import builtin_name_to_code
+
+    code = builtin_name_to_code(q)
+    if code:
+        from app.core.ticker_map import CODE_TO_NAME
+
+        return {"ticker": code, "corp_name": CODE_TO_NAME.get(code, q), "source": "builtin"}
+
+    # 3) DB(stocks) 이름 부분일치
+    try:
+        from app.db.database import get_db_session
+        from sqlalchemy import text
+
+        with get_db_session() as db:
+            row = db.execute(
+                text("SELECT ticker, corp_name FROM stocks WHERE corp_name ILIKE :q LIMIT 1"),
+                {"q": f"%{q}%"},
+            ).fetchone()
+        if row:
+            m = row._mapping
+            return {"ticker": m["ticker"], "corp_name": m["corp_name"], "source": "db"}
+    except Exception as exc:
+        logger.warning(f"[Resolve] DB 조회 건너뜀: {exc}")
+
+    # 4) DART 매핑(키 있을 때만)
+    try:
+        from app.collectors.dart_collector import download_corp_code_map
+
+        for code, info in download_corp_code_map().items():
+            if info.get("corp_name", "").replace(" ", "").lower() == q.replace(" ", "").lower():
+                return {"ticker": code, "corp_name": info["corp_name"], "source": "dart"}
+    except Exception as exc:
+        logger.warning(f"[Resolve] DART 조회 건너뜀: {exc}")
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"'{q}' 에 해당하는 종목을 찾지 못했습니다. 종목코드(숫자)로 입력하거나 정확한 종목명을 사용하세요.",
+    )
 
 
 @router.get("/report/{ticker}")

@@ -124,3 +124,99 @@ def require_keys(*key_names: str) -> List[str]:
         if not is_key_set(name):
             problems.append(missing_key_message(name))
     return problems
+
+
+# ------------------------------------------------------------------
+# 런타임에 키/설정을 등록·수정하기 위한 함수들.
+# (Streamlit '키 설정' 화면에서 사용 — 입력값은 .env 에 저장되고
+#  실행 중인 설정 객체에도 즉시 반영되어 재시작 없이 적용됩니다.)
+# ------------------------------------------------------------------
+
+# UI 에서 등록/수정 가능한 설정 키 목록(민감/비민감 구분)
+EDITABLE_SECRET_KEYS = [
+    "OPENAI_API_KEY",
+    "DART_API_KEY",
+    "ECOS_API_KEY",
+    "KOSCOM_API_KEY",
+]
+EDITABLE_PLAIN_KEYS = [
+    "KOSCOM_BASE_URL",
+    "KOSCOM_AUTH_TYPE",
+    "OPENAI_MODEL",
+    "ECOS_BASE_RATE_STAT_CODE",
+    "ECOS_BASE_RATE_ITEM_CODE",
+]
+
+_ENV_PATH = ".env"
+
+
+def _persist_env(values: dict) -> None:
+    """
+    제공된 키들을 .env 파일에 병합 저장합니다(기존 내용 보존).
+    값이 비어 있는 항목은 건드리지 않습니다.
+    """
+    import os
+
+    existing: dict = {}
+    # 기존 .env 읽기(있으면)
+    if os.path.exists(_ENV_PATH):
+        with open(_ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.rstrip("\n")
+                if not line or line.lstrip().startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                existing[k.strip()] = v
+    # 새 값 병합(비어있지 않은 것만)
+    for k, v in values.items():
+        if v is None:
+            continue
+        v = str(v).strip()
+        if v == "":
+            continue
+        existing[k] = v
+    # 다시 쓰기
+    with open(_ENV_PATH, "w", encoding="utf-8") as f:
+        f.write("# KOStockCrewAI 환경설정 (UI 또는 수동 편집으로 생성)\n")
+        for k, v in existing.items():
+            f.write(f"{k}={v}\n")
+
+
+def update_settings(values: dict) -> dict:
+    """
+    설정 값을 실행 중인 settings 객체에 즉시 반영하고 .env 에 저장합니다.
+
+    - 빈 값은 무시합니다(기존 값 유지).
+    - 반환: 실제로 적용된 키 이름 -> True
+    """
+    applied: dict = {}
+    allowed = set(EDITABLE_SECRET_KEYS + EDITABLE_PLAIN_KEYS)
+    for k, v in values.items():
+        if k not in allowed:
+            continue
+        if v is None or str(v).strip() == "":
+            continue
+        # 실행 중인 객체에 즉시 반영(모든 `from config import settings` 사용처가 공유)
+        setattr(settings, k, str(v).strip())
+        applied[k] = True
+    if applied:
+        _persist_env({k: getattr(settings, k) for k in applied})
+    return applied
+
+
+def settings_status() -> dict:
+    """
+    각 설정의 '설정 여부'만 반환합니다(키 값 자체는 절대 포함하지 않음).
+    """
+    status: dict = {}
+    for k in EDITABLE_SECRET_KEYS:
+        status[k] = {"configured": is_key_set(k), "secret": True}
+    for k in EDITABLE_PLAIN_KEYS:
+        val = getattr(settings, k, "") or ""
+        status[k] = {
+            "configured": is_key_set(k) if k == "KOSCOM_BASE_URL" else bool(val),
+            "secret": False,
+            # 비민감 값은 그대로 보여줘도 됨(키가 아님)
+            "value": val if k != "KOSCOM_BASE_URL" else ("설정됨" if is_key_set(k) else ""),
+        }
+    return status
