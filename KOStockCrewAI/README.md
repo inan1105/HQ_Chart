@@ -13,9 +13,13 @@
 
 - 📘 **실습 매뉴얼(따라하기)**: [`docs/바이브코딩_실습_매뉴얼.md`](docs/바이브코딩_실습_매뉴얼.md)
   - 바이브코딩 원리, **프롬프트 필요충분조건 12개**, 최초 프롬프트부터 배포까지 8단계 재현
-- 🌐 **원클릭 공개 배포(Render)**: 아래 링크로 API+UI+DB를 한 번에 배포해 도메인을 발급받으세요.
-  - `https://render.com/deploy?repo=https://github.com/inan1105/HQ_Chart`
+- 🌐 **원클릭 공개 배포(Render)**: 아래 버튼 한 번으로 **API + UI + DB**를 한꺼번에 배포하고 공개 도메인을 발급받으세요.
+
+  [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/inan1105/HQ_Chart)
+
+  - 버튼이 안 보이면 이 주소로 접속: `https://render.com/deploy?repo=https://github.com/inan1105/HQ_Chart`
   - 배포 후 화면 URL(`https://kostock-ui-XXXX.onrender.com`)을 교육생에게 공유하면 모두 체험 가능
+  - 📗 **상세 절차/접속/문제해결**: [`배포_및_접속_가이드.md`](배포_및_접속_가이드.md)
 
 ---
 
