@@ -3,3 +3,6 @@ node_modules/
 .env
 .env.local
 npm-debug.log*
+
+# 빌드 산출물(다운로드용 패키지) — 저장소에 커밋하지 않음
+*standalone*.zip
