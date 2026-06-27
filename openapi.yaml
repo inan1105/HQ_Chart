@@ -1,0 +1,66 @@
+openapi: 3.1.0
+info:
+  title: IAMChart 주가 history 프록시
+  description: >-
+    한국 주식(KOSPI/KOSDAQ) 시세 history 를 CORS 제약 없이 제공하는 프록시.
+    원격 was002.iamchart.com API(v3)를 서버에서 대신 호출해 동일한 JSON 을 반환합니다.
+  version: 1.0.0
+servers:
+  - url: https://hq-chart.vercel.app
+paths:
+  /api/history:
+    get:
+      operationId: getStockHistory
+      summary: 종목 시세 history 조회
+      description: >-
+        시장/주기/종목코드/개수를 받아 OHLCV 시세 배열을 반환합니다.
+        내부적으로 .../stock/history/{version} 원격 API 를 호출합니다.
+      parameters:
+        - name: market
+          in: query
+          required: true
+          description: 시장 구분
+          schema:
+            type: string
+            enum: [kospi, kosdaq]
+        - name: period
+          in: query
+          required: true
+          description: 주기 (d=일간, w=주간, m=월간)
+          schema:
+            type: string
+            enum: [d, w, m]
+        - name: code
+          in: query
+          required: true
+          description: 6자리 영숫자 종목코드 (예 000660)
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9]{6}$"
+        - name: limit
+          in: query
+          required: true
+          description: 데이터 개수 (1~1000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+        - name: version
+          in: query
+          required: false
+          description: 원격 API 버전 (기본값 v3)
+          schema:
+            type: string
+            enum: [v2, v3]
+            default: v3
+      responses:
+        "200":
+          description: 시세 JSON
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: 잘못된 파라미터
+        "502":
+          description: 원격 API 오류
