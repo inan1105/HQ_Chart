@@ -2,7 +2,8 @@ const https = require("node:https");
 const { URL } = require("node:url");
 
 const API_BASE =
-  "https://was002.iamchart.com/be.asp/ty.a/api/iamchart/SeriES/stock/history/v2";
+  "https://was002.iamchart.com/be.asp/ty.a/api/iamchart/SeriES/stock/history";
+const DEFAULT_VERSION = "v3";
 
 function validateHistoryRequest(requestUrl) {
   const url = new URL(requestUrl || "/", "https://hq-chart.vercel.app");
@@ -11,6 +12,9 @@ function validateHistoryRequest(requestUrl) {
   const code = String(url.searchParams.get("code") || "").toUpperCase();
   const limitRaw = String(url.searchParams.get("limit") || "");
   const limit = Number(limitRaw);
+  const version = String(
+    url.searchParams.get("version") || DEFAULT_VERSION,
+  ).toLowerCase();
 
   if (!["kospi", "kosdaq"].includes(market)) {
     return { error: "market은 kospi 또는 kosdaq만 가능합니다." };
@@ -28,7 +32,11 @@ function validateHistoryRequest(requestUrl) {
     return { error: "limit은 1부터 1000 사이의 숫자여야 합니다." };
   }
 
-  const apiUrl = new URL(API_BASE);
+  if (!["v2", "v3"].includes(version)) {
+    return { error: "version은 v2 또는 v3만 가능합니다." };
+  }
+
+  const apiUrl = new URL(`${API_BASE}/${version}`);
   apiUrl.searchParams.set("market", market);
   apiUrl.searchParams.set("period", period);
   apiUrl.searchParams.set("code", code);

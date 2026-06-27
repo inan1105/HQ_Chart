@@ -36,6 +36,26 @@
 - 종목코드: 6자리 영숫자
 - 데이터 수: 1부터 1000 사이 숫자
 
-## 참고
+## 프록시 API (`/api/history`)
 
-브라우저에서 원격 API를 직접 호출하면 CORS 정책 때문에 막힐 수 있습니다. 그래서 이 앱은 `server.js`가 로컬에서 API를 대신 호출하고, 화면은 `/api/history` 경로로 데이터를 받습니다.
+브라우저에서 원격 API를 직접 호출하면 CORS 정책 때문에 막힐 수 있습니다. 그래서 이 앱은 원격 API를 대신 호출해 주는 프록시를 제공합니다. 로컬 개발에서는 `server.js`가, 배포(Vercel) 환경에서는 `api/history.js`(서버리스 함수)가 같은 역할을 합니다.
+
+웹앱에서는 아래 경로로 데이터를 받습니다.
+
+```
+/api/history?market=kospi&period=d&code=000660&limit=200
+```
+
+이 프록시는 내부적으로 다음 원격 URL을 호출합니다.
+
+```
+https://was002.iamchart.com/be.asp/ty.a/api/iamchart/SeriES/stock/history/v3?market=kospi&period=d&code=000660&limit=200
+```
+
+### 쿼리 파라미터
+
+- `market`: `kospi` 또는 `kosdaq`
+- `period`: `d` 일간, `w` 주간, `m` 월간
+- `code`: 6자리 영숫자 종목코드
+- `limit`: 1부터 1000 사이 숫자
+- `version`: `v3`(기본값) 또는 `v2` — 원격 API 버전 선택
