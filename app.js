@@ -543,13 +543,12 @@ function periodLabel(period) {
   return "월간";
 }
 
-async function loadChart(params = paramsFromForm()) {
-  state.params = params;
-  state.hoverIndex = null;
-  setStatus("불러오는 중", "loading");
-  summaryEl.textContent = `${params.market} · ${periodLabel(params.period)} · ${params.code} · ${params.limit}`;
-  updateReadout(null);
-
+// config.js 의 설정에 따라 데이터 요청 URL 을 만듭니다.
+// - Cloudflare Worker 사용 시: Worker 주소 + 원격 경로(v3) 를 그대로 호출
+// - 미설정 시: 같은 도메인의 Vercel 프록시(/api/history) 호출
+function historyUrl(params) {
+  const config = window.IAMCHART_PROXY || {};
+  const proxyBase = String(config.base || "").trim();
   const query = new URLSearchParams({
     market: params.market,
     period: params.period,
@@ -557,8 +556,23 @@ async function loadChart(params = paramsFromForm()) {
     limit: String(params.limit),
   });
 
+  if (proxyBase) {
+    const base = proxyBase.endsWith("/") ? proxyBase : `${proxyBase}/`;
+    return `${base}be.asp/ty.a/api/iamchart/SeriES/stock/history/v3?${query.toString()}`;
+  }
+
+  return `/api/history?${query.toString()}`;
+}
+
+async function loadChart(params = paramsFromForm()) {
+  state.params = params;
+  state.hoverIndex = null;
+  setStatus("불러오는 중", "loading");
+  summaryEl.textContent = `${params.market} · ${periodLabel(params.period)} · ${params.code} · ${params.limit}`;
+  updateReadout(null);
+
   try {
-    const response = await fetch(`/api/history?${query.toString()}`);
+    const response = await fetch(historyUrl(params));
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.error || "데이터를 불러오지 못했습니다.");

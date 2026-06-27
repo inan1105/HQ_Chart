@@ -59,3 +59,10 @@ https://was002.iamchart.com/be.asp/ty.a/api/iamchart/SeriES/stock/history/v3?mar
 - `code`: 6자리 영숫자 종목코드
 - `limit`: 1부터 1000 사이 숫자
 - `version`: `v3`(기본값) 또는 `v2` — 원격 API 버전 선택
+
+### Cloudflare 프록시로 전환
+
+Vercel 서버리스 대신 **Cloudflare Worker** 프록시를 쓰려면 [`config.js`](./config.js)
+의 `base` 에 Worker 주소를 넣으면 됩니다(끝에 `/` 포함). 비개발자용 따라하기 안내는
+[CLOUDFLARE_GUIDE.md](./CLOUDFLARE_GUIDE.md) 를 참고하세요. Worker 소스는
+[`cloudflare-worker.js`](./cloudflare-worker.js) 입니다.
